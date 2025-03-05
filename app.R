@@ -5,7 +5,15 @@ library(png)     # For reading PNG images
 library(grid)    # For displaying plots
 
 ui <- fluidPage(
-  titlePanel("Shiny Interface for Dockerized R Script"),
+  # Add a title with a logo
+  fluidRow(
+    column(1, 
+           tags$img(src = "logo.JFIF", height = "250px")  # Adjust path & size
+    ),
+    column(11, 
+           titlePanel("AI-BATS")
+    )
+  ),
   
   sidebarLayout(
     sidebarPanel(
@@ -15,9 +23,19 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      DTOutput("data_table"),  # Display processed data
-      plotOutput("plot")       # Show generated plot
+      fluidRow(
+        column(6,  # Right: Before/After Images (closer to the data table)
+               h4("Before Processing"),
+               tags$img(src = "before.png", width = "100%", style = "max-width: 250px; height: auto; display: block; margin-left: auto; margin-right: auto;")
+        ),
+        column(6, h4("After Processing"),
+               tags$img(src = "after.png", width = "100%", style = "max-width: 250px; height: auto; display: block; margin-left: auto; margin-right: auto;")
+        )
+      ),
+      plotOutput("plot")  # Keep the plot below if needed
     )
+    
+    
   )
 )
 
