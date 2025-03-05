@@ -19,32 +19,6 @@ WORKDIR /app
 # Install Bioconductor manager
 RUN R -e "install.packages('BiocManager', repos='https://cloud.r-project.org/')"
 
-# Install CRAN packages in a separate step to use Docker caching
-RUN R -e "install.packages(c( \
-    'magrittr', 'dplyr', 'data.table', 'ggplot2', 'tidyr', 'purrr', \
-    'RColorBrewer', 'gridExtra', 'tibble', 'shiny', 'DT', 'png', 'grid'), \
-    repos='https://cloud.r-project.org/')"
-# Use the Shiny-verse base image for R and Shiny
-FROM rocker/shiny-verse:4.3.3
-
-# Install system dependencies required for some R packages
-RUN apt-get update && apt-get install -y \
-    libnetcdf-dev \
-    libhdf5-dev \
-    libxml2-dev \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libglpk-dev \
-    libgmp-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set the working directory
-WORKDIR /app
-
-# Install Bioconductor manager
-RUN R -e "install.packages('BiocManager', repos='https://cloud.r-project.org/')"
-
 # Install specific versions of CRAN packages
 RUN R -e "install.packages(c( \
     'magrittr'='2.0.3', 'dplyr'='1.1.4', 'data.table'='1.15.4', 'ggplot2'='3.5.1', 'tidyr'='1.3.1', 'purrr'='1.0.2', \
