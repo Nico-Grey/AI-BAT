@@ -1,0 +1,69 @@
+/* Default (Light Mode) */
+body {
+  background-color: white;
+  color: #0A1D2E; /* Dark blue */
+}
+
+/* Dark Mode */
+.dark-mode {
+  background-color: #0A1D2E !important; /* Dark blue */
+  color: #E0E0E0 !important; /* Softer white */
+}
+
+/* Navbar */
+.dark-mode .navbar-default {
+  background-color: #002B3D !important; /* Dark blue */
+  border-color: #004157 !important;
+}
+
+/* Panels, Tabs & Containers */
+.dark-mode .tab-content, 
+.dark-mode .well, 
+.dark-mode .panel {
+  background-color: #1A3A4A !important; /* Dark blue-gray */
+  color: #E0E0E0 !important;
+}
+
+/* Tables */
+.dark-mode table {
+  background-color: #1C2A36 !important; /* Deep dark blue */
+  color: #E0E0E0 !important;
+  border-color: #2A3C47 !important;
+}
+
+.dark-mode th {
+  background-color: #263C50 !important; /* Soft dark blue */
+}
+
+/* Links */
+.dark-mode a {
+  color: #4A90E2 !important; /* Soft blue */
+}
+
+.dark-mode a:hover {
+  color: #74A9EB !important; /* Slightly brighter on hover */
+}
+
+/* Buttons */
+.dark-mode .btn {
+  background-color: #4A90E2 !important;
+  border-color: #357ABD !important;
+  color: #FFFFFF !important;
+}
+
+.dark-mode .btn:hover {
+  background-color: #357ABD !important; /* Slightly darker hover */
+}
+
+/* DataTables */
+.dark-mode .dataTable {
+  background-color: #1C2A36 !important;
+}
+
+.dark-mode .dataTable th {
+  background-color: #263C50 !important;
+  color: #E0E0E0 !important;
+}
+
+.dark-mode .dataTable td {
+  background-color: #1F3443 !

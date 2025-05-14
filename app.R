@@ -3,52 +3,132 @@ library(DT)      # For displaying data tables
 library(ggplot2) # For plotting
 library(png)     # For reading PNG images
 library(grid)    # For displaying plots
+library(shinyjs)
 
-ui <- fluidPage(
-  # Add a title with a logo
-  fluidRow(
-    column(1, 
-           tags$img(src = "logo.JFIF", height = "250px")  # Adjust path & size
-    ),
-    column(11, 
-           titlePanel("AI-BATS")
-    )
-  ),
-  
-  sidebarLayout(
-    sidebarPanel(
-      fileInput("file", "Upload R Data File", accept = c(".RDS", ".RData")),
-      actionButton("run", "Run Processing"),
-      downloadButton("download", "Download Processed Data")
-    ),
-    
-    mainPanel(
-      fluidRow(
-        column(6,  # Right: Before/After Images (closer to the data table)
-               h4("Before Processing"),
-               tags$img(src = "before.png", width = "100%", style = "max-width: 250px; height: auto; display: block; margin-left: auto; margin-right: auto;")
-        ),
-        column(6, h4("After Processing"),
-               tags$img(src = "after.png", width = "100%", style = "max-width: 250px; height: auto; display: block; margin-left: auto; margin-right: auto;")
-        )
-      ),
-      plotOutput("plot")  # Keep the plot below if needed
-    )
-    
-    
-  )
+ui <- navbarPage("AI-BATS",
+                 shinyjs::useShinyjs(),
+                 tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"))
+                 ,
+                 # 🏠 HOME TAB
+                 tabPanel("Home",
+                          fluidRow(
+                            column(2, tags$img(src = "logo.JFIF", width = "100px")),
+                            column(10, h3("Welcome to AI-BATS"))
+                          ),
+                          p("AI-Bats Placeholder text")
+                 ),
+                 
+                 # 📂 UPLOAD DATA TAB
+                 tabPanel("Upload Data",
+                          sidebarLayout(
+                            sidebarPanel(
+                              fileInput("file", "Upload Data File", accept = c(".csv", ".RDS", ".RData")),
+                              actionButton("run", "Run Processing")
+                            ),
+                            mainPanel(
+                              h4("Instructions"),
+                              p("Upload your dataset in .RDS or .RData format and click 'Run Processing'.")
+                            )
+                          )
+                 ),
+                 
+                 # 📊 RESULTS TAB (PROCESSED DATA + IMAGES)
+                 tabPanel("Results",
+                          fluidRow(
+                            column(6, 
+                                   h4("Processed Data"),
+                                   DTOutput("data_table")
+                            ),
+                            column(6,  
+                                   h4("Before Processing"),
+                                   tags$img(src = "before.png", width = "80%", style = "max-width: 250px; height: auto;"),
+                                   h4("After Processing"),
+                                   tags$img(src = "after.png", width = "80%", style = "max-width: 250px; height: auto;")
+                            )
+                          ),
+                          plotOutput("plot")  # Plot at the bottom
+                 ),
+                 
+                 # ⬇️ DOWNLOAD TAB
+                 tabPanel("Download",
+                          sidebarLayout(
+                            sidebarPanel(
+                              downloadButton("download", "Download Processed Data")
+                            ),
+                            mainPanel(
+                              h4("Download Your Results"),
+                              p("Click the button to download the processed dataset in .RDS format.")
+                            )
+                          )
+                 ),
+                 
+                 # ⚙️ SETTINGS TAB
+                 tabPanel("Settings",
+                          sidebarLayout(
+                            sidebarPanel(
+                              checkboxInput("dark_mode", "Enable Dark Mode", FALSE),
+                              sliderInput("image_size", "Image Size", min = 50, max = 400, value = 250)
+                            ),
+                            mainPanel(
+                              h4("Customize Your Experience"),
+                              p("Toggle settings like dark mode and image size.")
+                            )
+                          )
+                 ),
+                 
+                 # ℹ️ ABOUT TAB
+                 tabPanel("About",
+                          h3("About AI-BATS"),
+                          p("AI-BATS is an advanced data processing tool designed to automate data cleaning and visualization."),
+                          p("")
+                 )
 )
 
+
 server <- function(input, output, session) {
+  ### DARK MODE FUNCTIONALITY
+  observe({
+    if (input$dark_mode) {
+      shinyjs::addClass(selector = "body", class = "dark-mode")  # Apply dark mode
+    } else {
+      shinyjs::removeClass(selector = "body", class = "dark-mode")  # Remove dark mode
+    }
+  })
   
   results <- reactiveVal(NULL)  # Store processed data
-  output_plot <- reactiveVal(NULL) # Store processed plot file path
+  output_plot <- reactiveVal(NULL)  # Store processed plot file path
+  
+  # Reactive function to handle different file types
+  uploaded_data <- reactive({
+    req(input$file)  # Ensure a file is uploaded
+    
+    ext <- tools::file_ext(input$file$name)  # Get file extension
+    
+    # Read file based on its type
+    data <- switch(ext,
+                   "csv" = read.csv(input$file$datapath, stringsAsFactors = FALSE),
+                   "RDS" = readRDS(input$file$datapath),
+                   "RData" = {
+                     temp_env <- new.env()
+                     load(input$file$datapath, envir = temp_env)
+                     get(ls(temp_env)[1], envir = temp_env)  # Return first object found
+                   },
+                   stop("Invalid file type")
+    )
+    
+    validate(need(!is.null(data), "Failed to load data. Check file format."))  
+    return(data)
+  })
   
   observeEvent(input$run, {
     req(input$file)  # Ensure a file is uploaded
     
-    # Define temporary paths for mounting files
-    input_path <- input$file$datapath
+    # Convert data to RDS for Docker processing
+    input_data <- uploaded_data()  # Get uploaded data
+    input_path <- tempfile(fileext = ".RDS")  # Temporary input file
+    saveRDS(input_data, input_path)  # Save as RDS
+    
+    # Define temporary output paths
     output_data_path <- tempfile(fileext = ".RDS")  # Temporary output file
     output_plot_path <- tempfile(fileext = ".png")  # Temporary plot file
     
@@ -87,5 +167,10 @@ server <- function(input, output, session) {
     }
   )
 }
+
+  
+ 
+
+
 
 shinyApp(ui, server)

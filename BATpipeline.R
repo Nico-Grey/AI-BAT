@@ -243,7 +243,7 @@ patterns_list <- list(
 
 
 #Function for projection
-project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4){
+project_X_to_Y_proteins <- function(X, Y, k = 8, d = 4){
   
   # X: Uncorrected matrix with proteins in the rows and samples in the columns
   # Y: Corrected matrix with proteins in the rows and samples in the columns
@@ -262,7 +262,7 @@ project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4){
   pr_X <- princomp(X)
   
   #We have a problme with d. When d is larger than the column of the data set we get an out of bound
-  X_dist <- as.matrix(dist(pr_X$scores[,1:d], method = 'euclidean'))
+  X_dist <- as.matrix(dist(pr_X$scores[,01:d], method = 'euclidean'))
   
   
   for (j in all_missing_proteins){
@@ -284,7 +284,9 @@ project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4){
     
     #Use the average projected vector
     average_proj <- matrix(colMeans(projected_vec), nrow = 1)
-    rownames(average_proj) <- paste0('proj-', protein_to_project)
+    
+    # average_proj is a 1×#samples matrix
+    rownames(average_proj) <- protein_to_project
     
     #Put the new protein into the batch corrected matrix
     Y_proj <- rbind(Y_proj, average_proj)
