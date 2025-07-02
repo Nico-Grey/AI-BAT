@@ -16,16 +16,49 @@ library(tibble)
 library(purrr)
 library(MSnbase)
 library(imputeLCMD)
+library(reticulate)
+print("Library uploaded")
 
 # Define working directory
 working_dir <- getwd()
 
+
 # Source external script directly (no subfolder)
 source(file.path(working_dir, "general_functions.R"))
 
-# Load the dataset
-dataset <- readRDS(file.path(getwd(), "dataset.RDS"))
 
+
+# ---- parse command‐line args ----
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) < 4) {
+  stop("Usage: Rscript BATpipeline.R <input_path> <output_data_path> <plot_dir> <param_path>")
+}
+
+input_path  <- args[1]
+output_path <- args[2]
+plot_dir    <- args[3]
+
+
+# Folder for plot saving
+if (!dir.exists(plot_dir)) {
+  dir.create(plot_dir, recursive = TRUE)
+}
+
+# ---- load the dataset from Shiny mount ----
+ext <- tolower(tools::file_ext(input_path))
+if (ext == "rds") {
+  data_stes <- readRDS(input_path)
+} else if (ext == "csv") {
+  data_stes <- data.table::fread(input_path, stringsAsFactors = FALSE)
+} else if (ext %in% c("rdata", "rda")) {
+  temp_env <- new.env()
+  load(input_path, envir = temp_env)
+  # assume the first object is the dataset
+  obj_name  <- ls(temp_env)[1]
+  data_stes <- temp_env[[obj_name]]
+} else {
+  stop(sprintf("Unsupported extension: %s", ext))
+}
 
 # Check normalization
 max_vals <- c()
@@ -51,11 +84,7 @@ for(i in names(data_stes)){
     data_stes[[i]]$normalized <- data_stes[[i]]$intensity
   }
 }
-
-#Median normalize Rabhi because the values are in a different range
-data_stes$Rhabi_control.rds$normalized <- data_stes$Rhabi_control.rds$normalized - apply(data_stes$Rhabi_control.rds$normalized, 2, function(x) median(x, na.rm = T))
-
-data_stes$Williams_control.rds <- NULL ##Missing gene names!!!!
+print("Normalization Complete")
 
 
 ##Batch Correction and Data Plotting
@@ -92,22 +121,10 @@ write.csv(df_descroption, file = file.path(getwd(), "all_normalized_description.
 batch_data <- read.csv(file.path(getwd(), "all_normalized_description.csv"), sep = ",", header = TRUE)
 
 batch_names <- c(
-  "1" = "Haas2021", 
-  "2" = "Haas2022", 
-  "3" = "Harney", 
-  "4" = "Johanna", 
-  "5" = "Kristina ewat", 
-  "6" = "Kristina iwat",
-  "7" = "Melina", 
-  "8" = "Oeckl",
-  "9" = "Rhabi",
-  "10" = "WangBAT",
-  "11" = "WangWAT"
+  ##Add function for batch names
 )
 mat_names <- c(
-  "Haas2021", "Haas2022", "Harney", "Johanna", 
-  "Kristina", "Kristina", "Melina", "Oeckl", 
-  "Rhabi", "WangBAT", "WangWAT"
+ ##Add function for matrix names
 )
 
 
@@ -140,19 +157,31 @@ pca_data_before <- data.frame(
   Batch = factor(batch_data$batch, levels = names(batch_names), labels = mat_names)
 )
 palette <- brewer.pal(n = length(unique(batch_data$batch)), name = "Set3")
-ggplot(pca_data_before, aes(x = PC1, y = PC2, color = Batch)) +
-  geom_point(size = 3, alpha = 0.8) +  # increase point size and add transparency
-  scale_color_manual(values = palette) +  # apply the color palette
+# 1) Build the plot and store it in a variable
+p_before <- ggplot(pca_data_before, aes(x = PC1, y = PC2, color = Batch)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = palette) +
   ggtitle("PCA Plot Before Batch Correction") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
+    plot.title   = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title   = element_text(size = 14),
+    axis.text    = element_text(size = 12),
     legend.title = element_text(size = 14),
-    legend.text = element_text(size = 12)
+    legend.text  = element_text(size = 12)
   ) +
-  labs(color = "Batch")  # label the legend
+  labs(color = "Batch")
+
+# 2) Save it into your mounted folder
+ggsave(
+  filename = file.path(plots_dir, "pca_before_batch_correction.png"),
+  plot     = p_before,
+  width    = 8,      # inches → 800 px at dpi=100
+  height   = 6,      # inches → 600 px at dpi=100
+  units    = "in",
+  dpi      = 100
+)
+
 
 
 combat_exprs <- ComBat(dat=common_prot, batch=batch_data$batch, mod=NULL, par.prior=TRUE, prior.plots=FALSE)
@@ -165,7 +194,7 @@ pca_data_after <- data.frame(
   PC2 = pca_after$x[, 2], 
   Batch = factor(batch_data$batch, levels = names(batch_names), labels = batch_names)
 )
-ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
+pca_after <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   geom_point(size = 3, alpha = 0.8) +  
   scale_color_manual(values = palette) +
   ggtitle("PCA Plot After Batch Correction") +
@@ -179,67 +208,25 @@ ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   ) +
   labs(color = "Batch")
 
-
-
-
-
-
-#  PCA - Before Batch Correction Tissue types
-pca_data_before <- data.frame(
-  PC1 = pca_before$x[, 1], 
-  PC2 = pca_before$x[, 2], 
-  Batch = all_tissue_types
+ggsave(
+  filename = file.path(plots_dir, "pca_after_batch_correction.png"),
+  plot     = pca_after,
+  width    = 8,      # inches → 800 px at dpi=100
+  height   = 6,      # inches → 600 px at dpi=100
+  units    = "in",
+  dpi      = 100
 )
-ggplot(pca_data_before, aes(x = PC1, y = PC2, color = Batch)) +
-  geom_point(size = 3, alpha = 0.8) +  
-  scale_color_manual(values = palette) +  
-  ggtitle("PCA Plot for Tissue Before Batch Correction") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.title = element_text(size = 14),
-    legend.text = element_text(size = 12)
-  ) +
-  labs(color = "Tissues")
-
-
-#PCA After Batch Tissues
-pca_data_after <- data.frame(
-  PC1 = pca_after$x[, 1], 
-  PC2 = pca_after$x[, 2], 
-  Batch = all_tissue_types
-)
-ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
-  geom_point(size = 3, alpha = 0.8) +  
-  scale_color_manual(values = palette) +  
-  ggtitle("PCA Plot for Age After Batch Correction") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    legend.title = element_text(size = 14),
-    legend.text = element_text(size = 12)
-  ) +
-  labs(color = "Tissues")
-
+print("Batch Correction Complete")
 
 ##Projections
-patterns_list <- list(
-  "Haas2021_RT_control.rds" = "Haas2021",
-  "Haas2022_RT_control.rds" = "Haas2022",
-  "Harney_BAT_control.rds"  = "Harney",
-  "Johanna_control.rds"     = "Johanna",
-  "Kristina_eWat_control.rds" = "Kristina.*eWAT|eWAT.*Kristina",
-  "Kristina_iWat_control.rds" = "kristina.*iWAT|iWAT.*Kristina",  
-  "Melina_control"       = "Melina",
-  "Oeckl_control.rds"        = "Oeckl",
-  "Rhabi_control.rds"        = "Rhabi",
-  "WangBAT_control"      = "WangBAT",
-  "WangWAT_control"      = "WangWAT"
+# auto-generate a named character vector of “prefixes”
+patterns_list <- setNames(
+  vapply(names(data_stes),
+         function(nm) strsplit(nm, "_")[[1]][1],
+         FUN.VALUE = character(1)),
+  names(data_stes)
 )
+
 
 
 #Function for projection
@@ -335,6 +322,8 @@ for(i in 1:length(mat_names)){
 
 all_matrices_proj <- Reduce(cbind, all_matrices)
 
+print("Projection Complete")
+
 #HeatMap
 # Replace NA with a specific value to identify them later
 all_matrices_mat_na <- all_matrices_proj %>% 
@@ -359,13 +348,22 @@ long_data <- long_data %>%
 custom_colors <- c("NA" = "grey", "Zero" = "red", "Other" = "blue")
 
 # Create the heatmap
-ggplot(long_data, aes(x = Column, y = Row, fill = ValueType)) +
+heatmap_one <- ggplot(long_data, aes(x = Column, y = Row, fill = ValueType)) +
   geom_tile() +
   scale_fill_manual(values = custom_colors) +
   labs(title = "Heatmap of NA and Zero Values", fill = "Value Type") +
   theme_minimal() +
   theme(axis.text.x = element_blank())+
   theme(axis.text.y = element_blank())
+
+ggsave(
+  filename = file.path(plots_dir, "Heatmap of NA.png"),
+  plot     = heatmap_one,
+  width    = 8,      # inches → 800 px at dpi=100
+  height   = 6,      # inches → 600 px at dpi=100
+  units    = "in",
+  dpi      = 100
+)
 
 
 
@@ -399,7 +397,7 @@ pca_data_after <- data.frame(
   PC2 = pca_after$x[, 2], 
   Batch = factor(batch_data$batch, levels = names(batch_names), labels = batch_names)
 )
-ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
+imputed_pca <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   geom_point(size = 3, alpha = 0.8) +  
   scale_color_manual(values = palette) +
   ggtitle("PCA Plot After Imputation 18%") +
@@ -413,6 +411,15 @@ ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   ) +
   labs(color = "Batch")
 
+ggsave(
+  filename = file.path(plots_dir, "PCA Plot After Imputation 18%.png"),
+  plot     = imputed_pca,
+  width    = 8,      # inches → 800 px at dpi=100
+  height   = 6,      # inches → 600 px at dpi=100
+  units    = "in",
+  dpi      = 100
+)
+
 
 
 pca_data_after <- data.frame(
@@ -420,7 +427,7 @@ pca_data_after <- data.frame(
   PC2 = pca_after$x[, 2], 
   Batch = all_tissue_types
 )
-ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
+tissue_impute <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   geom_point(size = 3, alpha = 0.8) +  
   scale_color_manual(values = palette) +  
   ggtitle("PCA Tissue 18% Imputation") +
@@ -433,6 +440,14 @@ ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
     legend.text = element_text(size = 12)
   ) +
   labs(color = "Tissues")
+ggsave(
+  filename = file.path(plots_dir, "Tissue Plot After Imputation 18%.png"),
+  plot     = tissue_impute,
+  width    = 8,      # inches → 800 px at dpi=100
+  height   = 6,      # inches → 600 px at dpi=100
+  units    = "in",
+  dpi      = 100
+)
 
 
 
@@ -461,3 +476,20 @@ ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
     legend.text = element_text(size = 12)
   ) +
   labs(color = "Diet")
+
+
+
+# 5) Save the final processed object back to Shiny
+saveRDS(imputed_matrix, file = output_data_path)
+
+# 6) Export the “last” ggplot to the plot file
+#    (If you want a specific plot, either wrap it in ggsave() directly
+#     or use last_plot() as below.)
+
+ggsave(filename = output_plot_path,
+       plot     = last_plot(),
+       device   = "png",
+       width    = 10,    # inches, adjust as you like
+       height   = 7,
+       units    = "in")
+

@@ -52,11 +52,11 @@ RUN R -e "install.packages(c( \
     repos='https://cloud.r-project.org/')"
 
 # Install specific versions of Bioconductor packages
-RUN R -e "BiocManager::install(c('Biostrings=2.70.3', 'ComplexHeatmap=2.18.0'), ask = FALSE, update = FALSE, dependencies = TRUE)"
-RUN R -e "BiocManager::install(c('MSnbase=2.28.1', 'sva=3.50.0', 'mixOmics=6.26.0'), ask = FALSE, update = FALSE, dependencies = TRUE)"
-RUN R -e "BiocManager::install(c('AnnotationDbi=1.64.1', 'IRanges=2.36.0', 'S4Vectors=0.40.2', 'GenomeInfoDb=1.38.8'), ask = FALSE, update = FALSE, dependencies = TRUE)"
-RUN R -e "BiocManager::install(c('SummarizedExperiment=1.32.0', 'GenomicRanges=1.54.1', 'DESeq2=1.40.0', 'edgeR=4.0.16', 'limma=3.58.1'), ask = FALSE, update = FALSE, dependencies = TRUE)"
-RUN R -e "BiocManager::install(c('org.Hs.eg.db=3.18.0', 'org.Mm.eg.db=3.18.0', 'clusterProfiler=4.10.1', 'HarmonizR=1.0.0', 'biomaRt=2.58.2', 'imputeLCMD=2.1'), ask = FALSE, update = FALSE, dependencies = TRUE)"
+RUN R -e "BiocManager::install(c('Biostrings', 'ComplexHeatmap'), ask = FALSE, update = FALSE, dependencies = TRUE)"
+RUN R -e "BiocManager::install(c('MSnbase', 'sva', 'mixOmics'), ask = FALSE, update = FALSE, dependencies = TRUE)"
+RUN R -e "BiocManager::install(c('AnnotationDbi', 'IRanges', 'S4Vectors', 'GenomeInfoDb'), ask = FALSE, update = FALSE, dependencies = TRUE)"
+RUN R -e "BiocManager::install(c('SummarizedExperiment', 'GenomicRanges', 'DESeq2', 'edgeR', 'limma'), ask = FALSE, update = FALSE, dependencies = TRUE)"
+RUN R -e "BiocManager::install(c('org.Hs.eg.db', 'org.Mm.eg.db', 'clusterProfiler', 'HarmonizR', 'biomaRt', 'imputeLCMD'), ask = FALSE, update = FALSE, dependencies = TRUE)"
 
 # Copy all necessary files into the container
 COPY BATpipeline.R /app/BATpipeline.R
