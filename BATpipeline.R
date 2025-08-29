@@ -478,6 +478,7 @@ ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
   labs(color = "Diet")
 
 # AI model training
+## function
 
 # 5) Save the final processed object back to Shiny
 saveRDS(imputed_matrix, file = output_data_path)
