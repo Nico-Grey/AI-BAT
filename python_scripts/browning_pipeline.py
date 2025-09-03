@@ -103,7 +103,9 @@ example_weights = {
 # ==============================================================================
 
 # --- Main Execution ---
-if __name__ == '__main__':
+def main(protein_data_path = './data/data_python/corrected.csv', precomputed_lasso_coefs_path='./data/data_python/coefs_from_lasso.pkl', 
+                      brown_markers_path='./data/data_python/marker.txt', sample_labels_path='./data/data_python/meta107_samples.csv', 
+                      recompute_lasso_markers=False, output_dir='./data/python_output', compute_shaps=False):
     
     # ==========================================================================
     # SECTION 1: DATA LOADING AND INITIALIZATION
@@ -112,8 +114,9 @@ if __name__ == '__main__':
     # --- 0. Load Data ---
     # Load all required datasets including protein expression data, marker genes,
     # sample labels, batch information, and metadata
-    protein_df, brown_markers, white_markers, sample_labels, batch_labels, lda_features, markers, tissue, diet= load_example_data()
-    
+    protein_df, brown_markers, white_markers, sample_labels, batch_labels, lda_features, markers, tissue, diet= load_example_data(protein_data_path = protein_data_path, precomputed_lasso_coefs_path=precomputed_lasso_coefs_path, 
+                      brown_markers_path=brown_markers_path, sample_labels_path=sample_labels_path)
+
     # ==========================================================================
     # SECTION 2: FEATURE SELECTION WITH LASSO REGRESSION
     # ==========================================================================
@@ -121,23 +124,27 @@ if __name__ == '__main__':
     # --- Load or Calculate LASSO-Selected Features ---
     # LASSO regression helps identify the most important features for classification
     # by applying L1 regularization to select features with non-zero coefficients
-    try: 
-        with open('script_outputs/lasso.pkl', 'rb') as f:
-            lasso_genes = pickle.load(f)
-    except FileNotFoundError:
-        print("LASSO genes not found, calculating...")
-        lasso_genes = lasso_selection(protein_df.join(tissue, how='left'))
-        # Save the lasso genes for future use to avoid recalculation
-        with open('script_outputs/lasso.pkl', 'wb') as f:
-            pickle.dump(lasso_genes, f)
+    if recompute_lasso_markers:
+        try: 
+            with open(f'{output_dir}/lasso.pkl', 'rb') as f:
+                lasso_genes = pickle.load(f)
+        except FileNotFoundError:
+            print("LASSO genes not found, calculating...")
+            lasso_genes = lasso_selection(protein_df.join(tissue, how='left'))
+            # Save the lasso genes for future use to avoid recalculation
+            with open(f'{output_dir}/lasso.pkl', 'wb') as f:
+                pickle.dump(lasso_genes, f)
+
+    # Alternative to lasso_genes: concatenate brown_markers and white markers
+    lasso_genes = brown_markers + white_markers
 
     # --- Generate Base Visualization Plots ---
     # Create comprehensive visualization plots with different feature sets and scaling options
     # These plots provide initial data exploration using PCA, t-SNE, and UMAP
     get_base_plots(protein_df, sample_labels, batch_labels, tissue, diet, 
-                   markers=markers, lasso=lasso_genes, all=protein_df.columns.tolist(), scaling=True)
+                   markers=markers, lasso=lasso_genes, all=protein_df.columns.tolist(), scaling=True, output_dir=output_dir)
     get_base_plots(protein_df, sample_labels, batch_labels, tissue, diet, 
-                   markers=markers, lasso=lasso_genes, all=protein_df.columns.tolist(), scaling=False)
+                   markers=markers, lasso=lasso_genes, all=protein_df.columns.tolist(), scaling=False, output_dir=output_dir)
 
     # ==========================================================================
     # SECTION 3: DATA PREPROCESSING AND SETUP
@@ -261,11 +268,11 @@ if __name__ == '__main__':
     # --- Calculate Composite Browning Score ---
     # Combine scores from multiple machine learning approaches using weighted average
     # The composite score provides a robust assessment by leveraging multiple models
-    composite_score = calculate_composite_score(all_sample_scores.drop(columns=['Status', 'Batch']), example_weights)
+    composite_score = calculate_composite_score(all_sample_scores.drop(columns=['Status', 'Batch']), weights=None) # if weighting use e.g. example weights
     # --- Save Comprehensive Results ---
     # Store all calculated scores in a CSV file for further analysis and reporting
     all_sample_scores['Composite_Score'] = composite_score
-    all_sample_scores.to_csv('script_outputs/all_sample_scores.csv')
+    all_sample_scores.to_csv(f'{output_dir}/all_sample_scores.csv')
 
     # Display sample results for verification
     print("Sample of calculated scores:")
@@ -280,7 +287,7 @@ if __name__ == '__main__':
     # Create correlation heatmap for visual analysis
     sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm')
     plt.title("Correlation Matrix of Browning Scores")
-    plt.savefig("script_outputs/correlation_matrix.png", dpi=300)
+    plt.savefig(f"{output_dir}/correlation_matrix.png", dpi=300)
     plt.close()
 
     # ==========================================================================
@@ -316,7 +323,7 @@ if __name__ == '__main__':
         plt.xlabel('Importance')
         plt.ylabel('Feature')
         plt.tight_layout()
-        plt.savefig(f'script_outputs/feature_importances_{name}.png', dpi=300)
+        plt.savefig(f'{output_dir}/feature_importances_{name}.png', dpi=300)
         plt.close()
 
     # ==========================================================================
@@ -327,22 +334,23 @@ if __name__ == '__main__':
     # SHAP (SHapley Additive exPlanations) provides feature-level explanations
     # for individual predictions, helping understand model decision-making
     print("--- Calculating SHAP values for LASSO-selected features ---")
-    tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
-            protein_df.copy()[lasso_genes], sample_labels, batch_labels,
-            positive_class='Brown', negative_class='White',
-            clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
-        )
-    shaps, fit = get_shaps(tabpfn, protein_df.copy()[lasso_genes], sample_labels, file_name="shap_values_lasso")
-    
-    # --- SHAP Analysis for Marker Genes ---
-    # Analyze SHAP values specifically for biologically-relevant marker genes
-    print("--- Calculating SHAP values for marker genes ---")
-    tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
-            protein_df.copy()[markers], sample_labels, batch_labels,
-            positive_class='Brown', negative_class='White',
-            clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
-        )
-    shaps, fit = get_shaps(tabpfn, protein_df.copy()[markers], sample_labels, file_name="shap_values_markers")
+    if compute_shaps:
+        tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
+                protein_df.copy()[lasso_genes], sample_labels, batch_labels,
+                positive_class='Brown', negative_class='White',
+                clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
+            )
+        shaps, fit = get_shaps(tabpfn, protein_df.copy()[lasso_genes], sample_labels, file_name="shap_values_lasso", output_dir=output_dir)
+        
+        # --- SHAP Analysis for Marker Genes ---
+        # Analyze SHAP values specifically for biologically-relevant marker genes
+        print("--- Calculating SHAP values for marker genes ---")
+        tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
+                protein_df.copy()[markers], sample_labels, batch_labels,
+                positive_class='Brown', negative_class='White',
+                clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
+            )
+        shaps, fit = get_shaps(tabpfn, protein_df.copy()[markers], sample_labels, file_name="shap_values_markers", output_dir=output_dir)
 
     # ==========================================================================
     # SECTION 12: FINAL VISUALIZATIONS AND SUMMARY OUTPUTS
@@ -352,7 +360,7 @@ if __name__ == '__main__':
     # Create comprehensive visualizations showing the distribution of all calculated scores
     # These plots help visualize how well different models separate browning classes
     print("--- Generating score distribution plots ---")
-    plot_score_distributions(all_sample_scores.drop(columns=['Status', 'Batch']), all_sample_scores.Status)
+    plot_score_distributions_fix(all_sample_scores.drop(columns=['Status', 'Batch']), all_sample_scores.Status, output_dir=output_dir)
 
     print("=== AI-BATS Pipeline Completed Successfully ===")
     print(f"Results saved to: script_outputs/")
@@ -362,3 +370,22 @@ if __name__ == '__main__':
     print(f"- Feature importance: Individual model importance plots")
     print(f"- Correlation analysis: correlation_matrix.png")
 
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="AI-BATS Browning Pipeline")
+    parser.add_argument("--protein_data_path", type=str, default='./data/data_python/corrected.csv')
+    parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='./data/data_python/coefs_from_lasso.pkl')
+    parser.add_argument("--brown_markers_path", type=str, default='./data/data_python/marker.txt')
+    parser.add_argument("--sample_labels_path", type=str, default='./data/data_python/meta107_samples.csv')
+    parser.add_argument("--recompute_lasso_markers", type=bool, default=False)
+    parser.add_argument("--compute_shaps", type=bool, default=False)
+    args = parser.parse_args()
+    print(args)
+    import time 
+    start = time.time()
+    main(protein_data_path=args.protein_data_path, precomputed_lasso_coefs_path=args.precomputed_lasso_coefs_path, 
+         brown_markers_path=args.brown_markers_path, sample_labels_path=args.sample_labels_path, recompute_lasso_markers=args.recompute_lasso_markers,
+         compute_shaps=args.compute_shaps)
+    end = time.time()
+    print(f"Total time taken: {end - start} seconds")

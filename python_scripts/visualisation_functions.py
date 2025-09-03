@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mannwhitneyu
 from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 
-
-def plot_pca_pcs(pca_scores, markers, sample_labels, batch_labels):
+def plot_pca_pcs(pca_scores, markers, sample_labels, batch_labels, output_dir="./script_outputs"):
     """Plots PCA of the data with different markers and colors based on tissue and diet."""
     fig, axs = plt.subplots(ncols=2, figsize=(11,5))
     scale = StandardScaler()
@@ -21,11 +21,88 @@ def plot_pca_pcs(pca_scores, markers, sample_labels, batch_labels):
     x2=sns.scatterplot(x=pca_scores.pca_browning_score_PC1, y=pca_scores.pca_browning_score_PC2, hue=batch_labels, ax = axs[1], legend=True)
     fig.suptitle("PCA")
     fig.tight_layout(rect=[0, 0, 0.9, 1]) # Adjust the right boundary of the tight_layout rectangle
-    plt.savefig("script_outputs/pca_plot.png", dpi=300)
-    print('Plot saved as script_outputs/pca_plot.png')
+    plt.savefig(f"{output_dir}/pca_plot.png", dpi=300)
+    print(f'Plot saved as {output_dir}/pca_plot.png')
     plt.close()
 
-def plot_score_distributions(df, status_labels):
+def plot_score_distributions_fix(df, status_labels, output_dir="./script_outputs"):
+    """Plots histograms and boxplots for each score, grouped by status if available.
+       Adds defensive checks to avoid huge bin allocations / non-numeric issues."""
+    print("\n## Plotting Score Distributions ##")
+    for col in df.columns:
+        # Force numeric; non-convertible values become NaN
+        series_numeric = pd.to_numeric(df[col], errors='coerce')
+        numeric = series_numeric.dropna()
+
+        if numeric.empty:
+            print(f"[plot_score_distributions] Skipping '{col}' (no numeric data after coercion).")
+            continue
+
+        plt.figure(figsize=(12, 5))
+
+        # Histogram / density
+        plt.subplot(1, 2, 1)
+        if numeric.nunique() == 1:
+            val = numeric.iloc[0]
+            plt.axvline(val, color='C0')
+            plt.title(f"{col}: single value ({val:.3g})")
+            plt.xlabel(col)
+            plt.ylabel("Count")
+        else:
+            # Conservative bin choice to avoid enormous allocations
+            n = len(numeric)
+            bins = min(100, max(10, int(np.sqrt(n))))
+            try:
+                sns.histplot(numeric, kde=True, bins=bins)
+            except ValueError as e:
+                print(f"[plot_score_distributions] Fallback hist for '{col}' due to: {e}")
+                plt.hist(numeric, bins=bins, edgecolor='black')
+            plt.title(f"Histogram of {col}")
+            plt.xlabel(col)
+            plt.ylabel("Frequency")
+
+        # Boxplot by Status
+        if status_labels is not None:
+            plt.subplot(1, 2, 2)
+            plot_df = pd.DataFrame({
+                'score': numeric,               # already numeric
+                'Status': status_labels
+            })
+            # Align lengths if status_labels is a Series with original index
+            if len(plot_df) != len(status_labels):
+                # Rebuild with proper alignment if indices matter
+                plot_df = pd.DataFrame({'score': series_numeric, 'Status': status_labels}).dropna(subset=['score'])
+            status_order = ['White', 'Intermediate', 'Brown']
+            present_statuses = [s for s in status_order if s in plot_df['Status'].unique()]
+
+            if present_statuses:
+                sns.boxplot(x='Status', y='score', data=plot_df, order=present_statuses,
+                            palette="Set2", hue="Status", dodge=False)
+                plt.title(f"Boxplot of {col} by Status")
+                plt.xlabel("Sample Status")
+                plt.ylabel(col)
+
+                # Mann-Whitney U test Brown vs White
+                if 'Brown' in present_statuses and 'White' in present_statuses:
+                    brown_scores = plot_df[plot_df['Status'] == 'Brown']['score'].dropna().values
+                    white_scores = plot_df[plot_df['Status'] == 'White']['score'].dropna().values
+                    if len(brown_scores) > 1 and len(white_scores) > 1:
+                        try:
+                            stat, p_val = mannwhitneyu(brown_scores, white_scores, alternative='two-sided')
+                            plt.text(0.95, 0.05, f'Brown vs White P-val: {p_val:.2e}',
+                                     ha='right', va='bottom', transform=plt.gca().transAxes, fontsize=9)
+                        except ValueError as e:
+                            print(f"[plot_score_distributions] Mann-Whitney failed for '{col}': {e}")
+            else:
+                plt.text(0.5, 0.5, "No relevant statuses for boxplot.",
+                         ha='center', va='center', transform=plt.gca().transAxes)
+        plt.tight_layout()
+        out_path = f'{output_dir}/{col}_distribution.png'
+        plt.savefig(out_path, dpi=300)
+        plt.close()
+        print(f"[plot_score_distributions] Saved {out_path}")
+
+def plot_score_distributions(df, status_labels, output_dir="./script_outputs"):
     """Plots histograms and boxplots for each score, grouped by status if available."""
     print("\n## Plotting Score Distributions ##")
     for col in df.columns:
@@ -76,11 +153,11 @@ def plot_score_distributions(df, status_labels):
                          ha='center', va='center', transform=plt.gca().transAxes)
 
         plt.tight_layout()
-        plt.savefig('script_outputs/' + col + '_distribution.png', dpi=300)
+        plt.savefig(f'{output_dir}/{col}_distribution.png', dpi=300)
         plt.close()
         
 
-def get_base_plots(protein_df, sample_labels, batch_labels, tissue, diet, all=None, markers=None, lasso=None, scaling=True):
+def get_base_plots(protein_df, sample_labels, batch_labels, tissue, diet, all=None, markers=None, lasso=None, scaling=True, output_dir="./script_outputs"):
     """Generates base plots for the protein data, including PCA and UMAP visualizations."""
     print("\n## Generating Base Plots ##")
     dim_reducers = [UMAP(n_components=2, random_state=1), PCA(n_components=2), Tsne(n_components=2, random_state=1)]
@@ -110,7 +187,7 @@ def get_base_plots(protein_df, sample_labels, batch_labels, tissue, diet, all=No
                     else:
                         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=7)
         plt.tight_layout()
-        plt.savefig(f'script_outputs/base_plots/{name}_base_plots_scaling{str(scaling)}.png', dpi=300)
+        plt.savefig(f'{output_dir}/{name}_base_plots_scaling{str(scaling)}.png', dpi=300)
         plt.close()
 
     
