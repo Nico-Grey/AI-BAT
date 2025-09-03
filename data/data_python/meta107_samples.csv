@@ -1,0 +1,108 @@
+,file_name,X,label,tissue,diet
+1,Haas2021-Haas2021-X.10..TP_Thermogenesis_RT_B.PG.Quantity,2,BAT-HFD,BAT,HFD
+2,Haas2021-Haas2021-X.11..TP_Thermogenesis_RT_C.PG.Quantity,3,BAT-HFD,BAT,HFD
+3,Haas2021-Haas2021-X.12..TP_Thermogenesis_RT_D.PG.Quantity,4,BAT-HFD,BAT,HFD
+4,Haas2021-Haas2021-X.9..TP_Thermogenesis_RT_A.PG.Quantity,1,BAT-HFD,BAT,HFD
+5,Haas2022-Haas2022-X.10..2022_TP_Thermogenesis_RT_B.PG.Quantity,6,BAT-HFD,BAT,HFD
+6,Haas2022-Haas2022-X.11..2022_TP_Thermogenesis_RT_C.PG.Quantity,7,BAT-HFD,BAT,HFD
+7,Haas2022-Haas2022-X.12..2022_TP_Thermogenesis_RT_D.PG.Quantity,8,BAT-HFD,BAT,HFD
+8,Haas2022-Haas2022-X.9..2022_TP_Thermogenesis_RT_A.PG.Quantity,5,BAT-HFD,BAT,HFD
+9,Harney-Harney-LFQ.intensity.DH_EXP169_Bfat_AdLib_Fed_1,9,BAT-AdLib,BAT,CD
+10,Harney-Harney-LFQ.intensity.DH_EXP169_Bfat_AdLib_Fed_2,10,BAT-AdLib,BAT,CD
+11,Harney-Harney-LFQ.intensity.DH_EXP169_Bfat_AdLib_Fed_3,11,BAT-AdLib,BAT,CD
+12,Harney-Harney-LFQ.intensity.DH_EXP169_Bfat_AdLib_Fed_4,12,BAT-AdLib,BAT,CD
+13,Harney-Harney-LFQ.intensity.DH_EXP169_Bfat_AdLib_Fed_5,13,BAT-AdLib,BAT,CD
+14,Johanna-Johanna-LFQ intensity 4442_22_PBS_m,14,iWAT-CD,iWAT,CD
+15,Johanna-Johanna-LFQ intensity 4443_22_PBS_m,15,iWAT-CD,iWAT,CD
+16,Johanna-Johanna-LFQ intensity 4444_22_PBS_f,16,iWAT-CD,iWAT,CD
+17,Johanna-Johanna-LFQ intensity 4445_22_PBS_f,17,iWAT-CD,iWAT,CD
+18,Johanna-Johanna-LFQ intensity 4446_22_PBS_f,18,iWAT-CD,iWAT,CD
+19,Johanna-Johanna-LFQ intensity 4453_22_PBS_f,19,iWAT-CD,iWAT,CD
+20,Johanna-Johanna-LFQ intensity 4454_22_PBS_f,20,iWAT-CD,iWAT,CD
+21,Johanna-Johanna-LFQ intensity 4455_22_PBS_f,21,iWAT-CD,iWAT,CD
+22,Johanna-Johanna-LFQ intensity 4456_22_PBS_m,22,iWAT-CD,iWAT,CD
+23,Johanna-Johanna-LFQ intensity 4457_22_PBS_m,23,iWAT-CD,iWAT,CD
+24,Johanna-Johanna-LFQ intensity 4458_22_PBS_m,24,iWAT-CD,iWAT,CD
+25,Kristina-Kristina-LFQ intensity CD_eWAT_1_1857,25,eWAT-CD,eWAT,CD
+26,Kristina-Kristina-LFQ intensity CD_eWAT_2_2127,26,eWAT-CD,eWAT,CD
+27,Kristina-Kristina-LFQ intensity CD_eWAT_3_2145,27,eWAT-CD,eWAT,CD
+28,Kristina-Kristina-LFQ intensity CD_eWAT_4_3253,28,eWAT-CD,eWAT,CD
+29,Kristina-Kristina-LFQ intensity CD_eWAT_5_4222,29,eWAT-CD,eWAT,CD
+30,Kristina-Kristina-LFQ intensity CD_iWAT_1_1427,40,iWAT-CD,iWAT,CD
+31,Kristina-Kristina-LFQ intensity CD_iWAT_2_1857,41,iWAT-CD,iWAT,CD
+32,Kristina-Kristina-LFQ intensity CD_iWAT_3_2127,42,iWAT-CD,iWAT,CD
+33,Kristina-Kristina-LFQ intensity CD_iWAT_4_2145,43,iWAT-CD,iWAT,CD
+34,Kristina-Kristina-LFQ intensity CD_iWAT_5_3253,44,iWAT-CD,iWAT,CD
+35,Kristina-Kristina-LFQ intensity CD_iWAT_6_4222,45,iWAT-CD,iWAT,CD
+36,Kristina-Kristina-LFQ intensity HFD_CD_eWAT_1_1096,30,eWAT-HFDCD,eWAT,HFDCD
+37,Kristina-Kristina-LFQ intensity HFD_CD_eWAT_2_1544,31,eWAT-HFDCD,eWAT,HFDCD
+38,Kristina-Kristina-LFQ intensity HFD_CD_eWAT_3_2005,32,eWAT-HFDCD,eWAT,HFDCD
+39,Kristina-Kristina-LFQ intensity HFD_CD_eWAT_4_3416,33,eWAT-HFDCD,eWAT,HFDCD
+40,Kristina-Kristina-LFQ intensity HFD_CD_eWAT_5_4224,34,eWAT-HFDCD,eWAT,HFDCD
+41,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_1_1096,46,iWAT-HFDCD,iWAT,HFDCD
+42,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_2_1544,47,iWAT-HFDCD,iWAT,HFDCD
+43,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_3_2005,48,iWAT-HFDCD,iWAT,HFDCD
+44,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_4_2179,49,iWAT-HFDCD,iWAT,HFDCD
+45,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_5_3416,50,iWAT-HFDCD,iWAT,HFDCD
+46,Kristina-Kristina-LFQ intensity HFD_CD_iWAT_6_4224,51,iWAT-HFDCD,iWAT,HFDCD
+47,Kristina-Kristina-LFQ intensity HFD_eWAT_1_1106,35,eWAT-HFD,eWAT,HFD
+48,Kristina-Kristina-LFQ intensity HFD_eWAT_2_1541,36,eWAT-HFD,eWAT,HFD
+49,Kristina-Kristina-LFQ intensity HFD_eWAT_3_2002,37,eWAT-HFD,eWAT,HFD
+50,Kristina-Kristina-LFQ intensity HFD_eWAT_4_3421,38,eWAT-HFD,eWAT,HFD
+51,Kristina-Kristina-LFQ intensity HFD_eWAT_5_4226,39,eWAT-HFD,eWAT,HFD
+52,Kristina-Kristina-LFQ intensity HFD_iWAT_1_1106,52,iWAT-HFD,iWAT,HFD
+53,Kristina-Kristina-LFQ intensity HFD_iWAT_2_1541,53,iWAT-HFD,iWAT,HFD
+54,Kristina-Kristina-LFQ intensity HFD_iWAT_3_2002,54,iWAT-HFD,iWAT,HFD
+55,Kristina-Kristina-LFQ intensity HFD_iWAT_4_2172,55,iWAT-HFD,iWAT,HFD
+56,Kristina-Kristina-LFQ intensity HFD_iWAT_5_3421,56,iWAT-HFD,iWAT,HFD
+57,Kristina-Kristina-LFQ intensity HFD_iWAT_6_4226,57,iWAT-HFD,iWAT,HFD
+58,Melina-Melina-Cold1,NA,BAT-CD,BAT,CD
+59,Melina-Melina-Cold2,NA,BAT-CD,BAT,CD
+60,Melina-Melina-Cold3,NA,BAT-CD,BAT,CD
+61,Melina-Melina-Cold4,NA,BAT-CD,BAT,CD
+62,Melina-Melina-Cold5,NA,BAT-CD,BAT,CD
+63,Melina-Melina-Cold6,NA,BAT-CD,BAT,CD
+64,Melina-Melina-RT1,NA,BAT-CD,BAT,CD
+65,Melina-Melina-RT2,NA,BAT-CD,BAT,CD
+66,Melina-Melina-RT3,NA,BAT-CD,BAT,CD
+67,Melina-Melina-RT4,NA,BAT-CD,BAT,CD
+68,Melina-Melina-RT5,NA,BAT-CD,BAT,CD
+69,Melina-Melina-RT6,NA,BAT-CD,BAT,CD
+70,Oeckl-Oeckl-iBAT.T23.WT_1,58,BAT-AdlibCD,BAT,CD
+71,Oeckl-Oeckl-iBAT.T23.WT_2,59,BAT-AdlibCD,BAT,CD
+72,Oeckl-Oeckl-iBAT.T23.WT_3,60,BAT-AdlibCD,BAT,CD
+73,Oeckl-Oeckl-iBAT.T23.WT_4,61,BAT-AdlibCD,BAT,CD
+74,Oeckl-Oeckl-iWAT.T23.WT_1,62,iWAT-AdlibCD,iWAT,CD
+75,Oeckl-Oeckl-iWAT.T23.WT_2,63,iWAT-AdlibCD,iWAT,CD
+76,Oeckl-Oeckl-iWAT.T23.WT_3,64,iWAT-AdlibCD,iWAT,CD
+77,Oeckl-Oeckl-iWAT.T23.WT_4,65,iWAT-AdlibCD,iWAT,CD
+78,Rhabi-Rhabi-VEH1B,71,BAT-HFD,BAT,HFD
+79,Rhabi-Rhabi-VEH1W,66,iWAT-HFD,iWAT,HFD
+80,Rhabi-Rhabi-VEH2B,72,BAT-HFD,BAT,HFD
+81,Rhabi-Rhabi-VEH2W,67,iWAT-HFD,iWAT,HFD
+82,Rhabi-Rhabi-VEH3B,73,BAT-HFD,BAT,HFD
+83,Rhabi-Rhabi-VEH3W,68,iWAT-HFD,iWAT,HFD
+84,Rhabi-Rhabi-VEH4B,74,BAT-HFD,BAT,HFD
+85,Rhabi-Rhabi-VEH4W,69,iWAT-HFD,iWAT,HFD
+86,Rhabi-Rhabi-VEH5B,75,BAT-HFD,BAT,HFD
+87,Rhabi-Rhabi-VEH5W,70,iWAT-HFD,iWAT,HFD
+88,WangBAT-WangBAT-Intensity of BAT_CD1,NA,BAT-CD,BAT,CD
+89,WangBAT-WangBAT-Intensity of BAT_CD2,NA,BAT-CD,BAT,CD
+90,WangBAT-WangBAT-Intensity of BAT_CD3,NA,BAT-CD,BAT,CD
+91,WangBAT-WangBAT-Intensity of BAT_CD4,NA,BAT-CD,BAT,CD
+92,WangBAT-WangBAT-Intensity of BAT_CD5,NA,BAT-CD,BAT,CD
+93,WangBAT-WangBAT-Intensity of BAT_HFD1,NA,BAT-HFD,BAT,HFD
+94,WangBAT-WangBAT-Intensity of BAT_HFD2,NA,BAT-HFD,BAT,HFD
+95,WangBAT-WangBAT-Intensity of BAT_HFD3,NA,BAT-HFD,BAT,HFD
+96,WangBAT-WangBAT-Intensity of BAT_HFD4,NA,BAT-HFD,BAT,HFD
+97,WangBAT-WangBAT-Intensity of BAT_HFD5,NA,BAT-HFD,BAT,HFD
+98,WangWAT-WangWAT-Intensity of sWAT_CD1,NA,SWAT-CD,sWAT,CD
+99,WangWAT-WangWAT-Intensity of sWAT_CD2,NA,SWAT-CD,sWAT,CD
+100,WangWAT-WangWAT-Intensity of sWAT_CD3,NA,SWAT-CD,sWAT,CD
+101,WangWAT-WangWAT-Intensity of sWAT_CD4,NA,SWAT-CD,sWAT,CD
+102,WangWAT-WangWAT-Intensity of sWAT_CD5,NA,SWAT-CD,sWAT,CD
+103,WangWAT-WangWAT-Intensity of sWAT_HFD1,NA,SWAT-HFD,sWAT,HFD
+104,WangWAT-WangWAT-Intensity of sWAT_HFD2,NA,SWAT-HFD,sWAT,HFD
+105,WangWAT-WangWAT-Intensity of sWAT_HFD3,NA,SWAT-HFD,sWAT,HFD
+106,WangWAT-WangWAT-Intensity of sWAT_HFD4,NA,SWAT-HFD,sWAT,HFD
+107,WangWAT-WangWAT-Intensity of sWAT_HFD5,NA,SWAT-HFD,sWAT,HFD
