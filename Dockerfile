@@ -168,14 +168,17 @@ RUN conda env create -f environment.yml -y \
     && conda clean -afy \
     && conda init
 
+# Activate the conda environment by default
+SHELL ["conda", "run", "-n", "aibats", "/bin/bash", "-c"]
+RUN pip install "tabpfn-extensions[all] @ git+https://github.com/PriorLabs/tabpfn-extensions.git"
 # =============================================================================
 # PYTHON ENVIRONMENT ACTIVATION
 # =============================================================================
 # Configure shell to automatically activate the AI-BATS Python environment
 
 # Activate environment by default and update PATH
-RUN echo "source activate {aibats}" > ~/.bashrc
-ENV PATH=/opt/conda/envs/{aibats}/bin:$PATH
+RUN echo "source activate aibats" > ~/.bashrc
+ENV PATH=/opt/conda/envs/aibats/bin:$PATH
 # =============================================================================
 # NETWORK CONFIGURATION
 # =============================================================================
