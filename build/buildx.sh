@@ -10,7 +10,7 @@ docker buildx create --name multiarch-builder --use
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
 # Build the Docker image for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 -t $IMAGE_NAME-latest --push .
+docker buildx build --platform linux/amd64 -t $IMAGE_NAME-test --push .
 
 # Clean up the builder instance
 docker buildx rm multiarch-builder

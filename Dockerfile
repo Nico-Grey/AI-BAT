@@ -20,7 +20,8 @@
 # =============================================================================
 
 # Use the Shiny-verse base image for R and Shiny
-FROM --platform=$BUILDPLATFORM rocker/shiny-verse:4.3.3 AS base
+ARG TARGETPLATFORM
+FROM rocker/shiny-verse:4.3.3 AS base
 
 # Install system dependencies required for some R packages
 RUN apt-get update && apt-get install -y \
@@ -31,6 +32,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libglpk-dev \
     libgmp-dev \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -75,11 +77,12 @@ RUN set -e; \
     echo ". ${CONDA_DIR}/etc/profile.d/conda.sh" >> /etc/bash.bashrc
 ENV PATH="${CONDA_DIR}/bin:${PATH}"
 
-# Add conda to PATH
-ENV PATH="/root/miniconda3/bin:${PATH}"
 
 # Copy Python environment specification
-COPY ../environment.yml /app/environment.yml
+COPY ./environment.yml /app/environment.yml
+
+RUN conda tos accept --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --channel https://repo.anaconda.com/pkgs/r
 
 # Create conda environment and initialize conda shell integration
 RUN conda env create -f /app/environment.yml -y \
@@ -87,12 +90,14 @@ RUN conda env create -f /app/environment.yml -y \
     && conda init
 
 # Activate the conda environment by default
-SHELL ["conda", "run", "-n", "aibats", "/bin/bash", "-c"]
-RUN pip install "tabpfn-extensions[all] @ git+https://github.com/PriorLabs/tabpfn-extensions.git"
-RUN python python_scripts/download_all_models.py
+RUN /opt/conda/bin/conda run -n aibats python python_scripts/download_all_models.py
+#SHELL ["/opt/conda/bin/conda","run","-n","aibats","/bin/bash","-c"]
+#RUN apt-get install -y git
+#RUN pip install "tabpfn-extensions[all] @ git+https://github.com/PriorLabs/tabpfn-extensions.git"
+#RUN conda activate aibats \ && python python_scripts/download_all_models.py
 
 # Activate environment by default and update PATH
-RUN echo "source activate aibats" > ~/.bashrc
+RUN echo "conda activate aibats" >> ~/.bashrc
 ENV PATH=/opt/conda/envs/aibats/bin:$PATH
 
 # Expose Shiny's default port

@@ -7,7 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
-from tabpfn.model_loading import _user_cache_dir, download_all_models
+from tabpfn.model_loading import _user_cache_dir, download_all_models, download_model
 
 
 def main() -> None:
@@ -35,7 +35,8 @@ def main() -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Downloading all models to {cache_dir}")
-    download_all_models(cache_dir)
+    download_model(cache_dir, version="v2", which="classifier", model_name="tabpfn-v2-classifier.ckpt")
+    download_model(cache_dir, version="v2", which="classifier", model_name="tabpfn-v2-classifier-finetuned-zk73skhh.ckpt")
     logger.info(f"All models downloaded to {cache_dir}")
 
 
