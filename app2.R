@@ -722,7 +722,12 @@ server <- function(input, output, session){
     # Save final outputs (RDS)
     out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", Sys.Date(), ".rds"))
     saveRDS(imputed_matrix, file = out_rds)
-    message("Saved imputed matrix to: ", out_rds)
+    message("Saved imputed matrix to: ", out_rds
+
+    # Save final outputs (CSV)
+out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", Sys.Date(), ".csv"))
+write.csv(imputed_matrix, file = out_csv, row.names = FALSE)
+message("Saved imputed matrix to: ", out_csv)
     
     # Save last plot PNG as well
     out_plot <- file.path(plot_dir, "last_plot.png")
@@ -829,4 +834,5 @@ server <- function(input, output, session){
 } # end server
 
 shinyApp(ui = ui, server = server)
+
 
