@@ -375,10 +375,10 @@ def main(protein_data_path = './data/data_python/corrected.csv', precomputed_las
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="AI-BATS Browning Pipeline")
-    parser.add_argument("--protein_data_path", type=str, default='../data/data_python/corrected.csv')
-    parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='../data/data_python/coefs_from_lasso.pkl')
-    parser.add_argument("--brown_markers_path", type=str, default='../data/data_python/marker.txt')
-    parser.add_argument("--sample_labels_path", type=str, default='../data/data_python/meta107_samples.csv')
+    parser.add_argument("--protein_data_path", type=str, default='./data/data_python/corrected.csv')
+    parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='./data/data_python/coefs_from_lasso.pkl')
+    parser.add_argument("--brown_markers_path", type=str, default='./data/data_python/marker.txt')
+    parser.add_argument("--sample_labels_path", type=str, default='./data/data_python/meta107_samples.csv')
     parser.add_argument("--recompute_lasso_markers", type=bool, default=False)
     parser.add_argument("--compute_shaps", type=bool, default=False)
     args = parser.parse_args()
