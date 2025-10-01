@@ -1,0 +1,94 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ggplot2)
+library(patchwork)
+library(tidyr)
+library(dplyr)
+library(data.table)
+working_dir = "/Users/Yu_J/Documents/GitHub/AI-BAT/data/python_output"
+
+
+df = read.csv(paste0(working_dir,"/all_sample_scores.csv"))
+
+```
+
+## scale the browning score PC1
+
+```{r}
+df$pca_browning_score_PC1_scaled = scales::rescale(df$pca_browning_score_PC1,to = c(0,100))
+
+```
+
+## plot the results into a figure
+
+### function
+
+```{r}
+
+
+plot_browning_score = function(sample){
+  # 1️⃣ Top text
+  p_title <- ggplot() +
+    annotate("text", x = 0, y = 0, label = "The browning score for your sample is:", hjust = 1) +
+    theme_void()
+  
+  # 2️⃣ Middle: sample tiles with arrows and labels
+  p_tiles <- ggplot(df, aes(x = pca_browning_score_PC1_scaled, y = 0,
+                            fill = pca_browning_score_PC1_scaled)) +
+    geom_tile(aes(width = 0.1, height = 0.1)) +
+    scale_fill_gradient2(low = "lightblue", mid = "cyan", high = "orange", midpoint = 50) +
+    ylab("Training samples: ") +
+    theme_void() +
+    theme(legend.position = "none") +
+    
+    # Arrow for highlighted samples
+    geom_segment(data = filter(df, X %in% sample),
+                 aes(x = pca_browning_score_PC1_scaled, xend = pca_browning_score_PC1_scaled,
+                     y = -0.05, yend = 0.1),
+                 arrow = arrow(length = unit(0.15, "inches")), color = "black") +
+    
+    # Score text
+    geom_text(data = filter(df, X %in% sample),
+              aes(x = pca_browning_score_PC1_scaled, y = 0.11,
+                  label = round(pca_browning_score_PC1_scaled, 2)), vjust = 0, size = 3) +
+    
+    # Sample name on top
+    geom_text(data = filter(df, X %in% sample),
+              aes(x = pca_browning_score_PC1_scaled, y = 0.13, label = X),
+              vjust = 0, size = 3)
+  
+  # 3️⃣ Bottom: gradient box
+  gradient_df <- data.frame(x = seq(0, 100, length.out = 100), y = 1)
+  
+  p_gradient <- ggplot(gradient_df, aes(x = x, y = y, fill = x)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "lightblue", mid = "cyan", high = "orange", midpoint = 50) +
+    scale_x_continuous(breaks = c(0, 95),labels = c("0 (White)","100 (Brown)")) +
+    ylab("Browning score: ") +
+    theme_void() +
+    theme(legend.position = "none",
+          axis.text.x = element_text(),
+          axis.title.y = element_text()) +
+    labs(fill = NULL) 
+  
+  # Combine plots vertically
+  library(patchwork)
+  final_plot <- p_title / p_tiles / p_gradient + plot_layout(heights = c(0.5, 1.5, 0.5))
+  print(final_plot)
+}
+```
+
+## plot one sample
+
+```{r}
+plot_browning_score(df$X[1])
+
+```
+
+
