@@ -1,4 +1,4 @@
-# app.R - self-contained (no general_functions.R)
+# app.R - corrected
 library(shiny)
 library(bslib)
 library(DT)
@@ -11,13 +11,15 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library(Biobase)
+library(reticulate)
+library(glue)
 
 # -------------------------
 # App / paths configuration
 # -------------------------
-APP_DIR <- Sys.getenv("APP_DIR", "/app")
+# APP_DIR <- Sys.getenv("APP_DIR", "/app")
+APP_DIR <- Sys.getenv("APP_DIR", tempdir())
 
-# GSEA dir still optional, in case you later want to add it
 gsea_from_env <- Sys.getenv("GSEA_PATHWAY_DIR", unset = "")
 gsea_pathway_dir <- if (nzchar(gsea_from_env)) {
   normalizePath(gsea_from_env, winslash = "/", mustWork = FALSE)
@@ -27,14 +29,13 @@ gsea_pathway_dir <- if (nzchar(gsea_from_env)) {
 dir.create(gsea_pathway_dir, recursive = TRUE, showWarnings = FALSE)
 options(gsea_pathway_dir = gsea_pathway_dir)
 
-# Output dirs
 PLOTS_DIR  <- Sys.getenv("PLOTS_DIR", file.path(APP_DIR, "plots"))
 OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "output"))
 dir.create(PLOTS_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 # -------------------------
-# UI / Theme
+# UI / Theme (unchanged except small add)
 # -------------------------
 my_theme <- bs_theme(
   bootswatch = "darkly",
@@ -47,20 +48,9 @@ my_theme <- bs_theme(
 ) %>%
   bs_add_rules(
     "
-    /* Gallery for responsive plot layout */
-    .plot-gallery {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-top: 15px;
-    }
-    .plot-gallery .shiny-plot-output {
-      margin: auto;
-    }
-    /* Ensure table is responsive */
-    .data-table-container {
-      overflow-x: auto;
-    }
+    .plot-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 15px; }
+    .plot-gallery .shiny-plot-output { margin: auto; }
+    .data-table-container { overflow-x: auto; }
   "
   )
 
@@ -76,15 +66,9 @@ inputTabUI <- function() {
           accept = c(".csv", ".rds"),
           buttonLabel = "Browse...", placeholder = "No file selected"
         ),
-        # --- Debug block: shows exactly what Shiny received ---
         tags$hr(),
         h4("Upload Status"),
         verbatimTextOutput("debug_upload"),
-        tags$hr(),
-        selectInput("plot_color", "Choose Point Color:",
-                    choices = c("blue", "red", "green", "purple", "black"),
-                    selected = "blue"),
-        sliderInput("plot_size", "Point Size:", min = 1, max = 10, value = 3),
         actionButton("run_analysis", "Run Analysis", icon = icon("play"), class = "btn-primary"),
         br(), br(),
         strong(textOutput("analysis_status"))
@@ -100,10 +84,6 @@ inputTabUI <- function() {
   )
 }
 
-# -------------------------
-# Helpers
-# -------------------------
-
 placeholder_image_card <- function(title, file, height = "250px") {
   div(
     class = "card shadow-sm mb-3 p-3",
@@ -116,21 +96,13 @@ placeholder_image_card <- function(title, file, height = "250px") {
   )
 }
 
-# -------------------------
-# Results Tab (with image placeholders)
-# -------------------------
-
 resultsTabUI <- function() {
   fluidPage(
     fluidRow(
       column(
         width = 12,
         h3("Processed Data"),
-        downloadButton(
-          "download_data",
-          "Download Data",
-          class = "btn-secondary"
-        )
+        downloadButton("download_data", "Download Data", class = "btn-secondary")
       )
     ),
     fluidRow(
@@ -149,60 +121,51 @@ resultsTabUI <- function() {
   )
 }
 
-# -------------------------
-# Examples Tab (with image placeholders)
-# -------------------------
-
 examplesTabUI <- function() {
   fluidPage(
     h2("Examples & Tutorial"),
     p("This section provides example usage, sample data, and instructions."),
-    
-    # Main guide header
     h2("How to Use the App & Data Formatting Guide"),
     p("This page explains exactly what to do, what happens to your data at each step, and how to format your files so the analysis runs smoothly. Keep it open the first time you use the app."),
-    
-    # Pipeline (collapsible)
     tags$details(
       tags$summary(h3("What happens to your data (pipeline)")),
-      tags$h4("Ingest"),
+      tags$h4("Setup"),
       tags$ul(
-        tags$li("Reads CSV (via readr) or RDS (a saved R object, e.g., data.frame/tibble)."),
-        tags$li("Captures file metadata (name, size).")
+        tags$li("Initializes the environment and prepares input files."),
+        tags$li("Captures file metadata (format, sample size, and identifiers) to ensure compatibility and traceability.")
       ),
-      
-      tags$h4("Validation"),
+      tags$h4("Loading and Trimming"),
       tags$ul(
-        tags$li("Checks encoding, header row, duplicate column names, and row count."),
-        tags$li("Verifies required/selected columns exist and have compatible types."),
-        tags$li("Normalizes missing values (e.g., \"\", NA, NaN, NULL).")
+        tags$li("Reads your dataset (CSV or RDS)."),
+        tags$li("Removes unnecessary spaces, formatting issues, or mislabeled entries."),
+        tags$li("Keeps only relevant samples and protein identifiers to maintain consistency across datasets.")
       ),
-      
-      tags$h4("Cleaning"),
+      tags$h4("Basic Normalization"),
       tags$ul(
-        tags$li("Trims whitespace, standardizes date/time formats, coerces types (numeric/factor/date), optional de-duplication."),
-        tags$li("Flags out-of-range values and uncommon categories.")
+        tags$li("Adjusts raw intensity values to reduce technical variability."),
+        tags$li("Places samples on a comparable scale while preserving biological signal.")
       ),
-      
-      tags$h4("Transformations (only if selected)"),
+      tags$h4("Batch Correction"),
       tags$ul(
-        tags$li("Filtering/subsetting, aggregations, scaling/normalization, encoding of categorical variables, derived fields.")
+        tags$li("Identifies and corrects batch effects from multiple experimental runs."),
+        tags$li("Removes technical biases so differences reflect biological variation rather than experiment-specific effects.")
       ),
-      
-      tags$h4("Analysis"),
+      tags$h4("Matrix Projection"),
       tags$ul(
-        tags$li("Runs the selected methods and diagnostics."),
-        tags$li("Computes summary stats and model outputs (as applicable).")
+        tags$li("Aligns protein intensities across datasets with different coverage or missing genes."),
+        tags$li("Projects all data into a common reference matrix, enabling direct comparisons in the same analytical space.")
       ),
-      
-      tags$h4("Results"),
+      tags$h4("Imputation"),
       tags$ul(
-        tags$li("Renders interactive tables/plots and downloadable artifacts."),
-        tags$li("Data retention: By default, data is kept only in your active session and cleared when you close/refresh the app.")
+        tags$li("Estimates missing values using proteomics-specific statistical methods."),
+        tags$li("Fills in gaps based on observed patterns, preserving as much biological information as possible.")
+      ),
+      tags$h4("Output"),
+      tags$ul(
+        tags$li("Produces a harmonized, analysis-ready data matrix."),
+        tags$li("Enables exploration within the app and allows downloading for downstream statistical or machine learning analysis.")
       )
     ),
-    
-    # Accepted file types (collapsible)
     tags$details(
       tags$summary(h3("Accepted file types")),
       tags$ul(
@@ -211,143 +174,75 @@ examplesTabUI <- function() {
         tags$li("Max file size: 200 MB")
       )
     ),
-    
-    # File expectations
     tags$details(
       tags$summary(h3("File Expectations")),
       tags$ul(
-        tags$li(
-          strong("Intensity Data Frame:"), 
-          " The intensity data frame will have the registered intensity of each gene analyzed. ",
-          "Missing data should preferably be noted as ", code("NA"), 
-          ", and not NaN or 0. The row names of the data frame will be the exact name of the gene analyzed, ",
-          "while the column names will be the observations."
-        ),
-        tags$li(
-          strong("Meta Data Frame:"), 
-          " This data frame will provide all the additional information for each sample. ",
-          "The row names will be the observations (opposite of the Intensity Data Frame). ",
-          "The column names need to be written exactly as follows:",
-          tags$ul(
-            tags$li(code("sample")),
-            tags$li(code("treatment")),
-            tags$li(code("tissue")),
-            tags$li(code("age")),
-            tags$li(code("gender")),
-            tags$li(code("temperature")),
-            tags$li(code("genotype")),
-            tags$li(code("mouse"))
-          ),
-          
-          h3("Sample Meta Data Frame"),
-          fluidRow(
-            column(
-              width = 6,
-              placeholder_image_card("Meta Data", "example.tab.png")
-              
-            ),
-        )
-      )
+        tags$li(strong("Intensity Data Frame:"), " The intensity data frame will have the registered intensity of each gene analyzed. Missing data should preferably be noted as ", code("NA"), ". Row names = gene names; column names = observations."),
+        tags$li(strong("Meta Data Frame:"), " This data frame will provide sample metadata. Row names = observations.")
       )
     ),
-    
-    # CSV formatting rules
     tags$details(
       tags$summary(h3("CSV formatting rules")),
       tags$ul(
         tags$li("Header row in the first line with unique column names."),
-        tags$li("Delimiter: comma , (other delimiters like ; or tab are supported if you specify them in the upload options)."),
+        tags$li("Delimiter: comma , (other delimiters supported if specified)."),
         tags$li("Encoding: UTF-8."),
         tags$li("Quotes: double quotes \" around fields that contain commas or line breaks."),
-        tags$li("Decimal: . (dot). If you use , (comma), set that option during upload."),
-        tags$li("Missing values: prefer empty cells or NA. The app also treats NaN, NULL, and . as missing.")
+        tags$li("Decimal: . (dot)."),
+        tags$li("Missing values: prefer empty cells or NA.")
       )
     ),
-    
-    # App workflow
     tags$details(
       tags$summary(h3("App workflow (tabs & actions)")),
       tags$h4("1) Data Input"),
       tags$ul(
         tags$li("Upload: Choose CSV or RDS."),
-        tags$li("Optional: set delimiter, decimal mark, and NA strings (CSV)."),
         tags$li("Preview: See the first N rows and summary."),
-        tags$li("Validate: The app checks types, missingness, duplicates, and date parsing."),
-        tags$li("Map columns: Use dropdowns to assign roles (ID, Date, Outcome, Group, Features). Nothing is permanently changed in your file."),
-        tags$li("Fix issues: If validation flags problems, you’ll get clear messages and suggested fixes.")
+        tags$li("Validate: The app checks types, missingness, duplicates, and date parsing.")
       ),
-      
       tags$h4("2) Analysis"),
       tags$ul(
-        tags$li("Select methods/options: Choose analyses relevant to your task (summary stats, comparisons, modeling, time series, etc.)."),
-        tags$li("Configure settings: Filters, transformations, handling of missing data, resampling, metrics."),
+        tags$li("Select methods/options: Choose analyses relevant to your task."),
         tags$li("Run Analysis: Executes the pipeline and caches results for this session.")
       ),
-      
       tags$h4("3) Results"),
       tags$ul(
         tags$li("Overview: Key metrics and status of the run."),
         tags$li("Tables: Clean dataset preview, summary tables, and model results."),
-        tags$li("Charts: Interactive plots; hover to see values; download buttons on each figure."),
-        tags$li("Diagnostics: Warnings, assumptions checks, and logs.")
+        tags$li("Charts: Interactive plots; download buttons on each figure.")
       ),
-      
       tags$h4("4) Download"),
       tags$ul(
-        tags$li("Processed data: The cleaned/filtered dataset used in the analysis (CSV/RDS)."),
-        tags$li("Figures: PNG/SVG/PDF as available."),
-        tags$li("Run Report: YAML/JSON describing input file, mappings, options, package versions, random seed.")
+        tags$li("Processed data: CSV/RDS."),
+        tags$li("Figures: PNG/SVG/PDF as available.")
       )
     ),
-    
-    # Reproducibility
     tags$details(
       tags$summary(h3("Reproducibility")),
-      p("Each run captures: timestamp, input hash, selected options, and package versions. You can re-run the same configuration by reloading the Run Report (when supported) or by reapplying the settings.")
+      p("Each run captures: timestamp, input hash, selected options, and package versions.")
     ),
-    
-    # Limits & performance
     tags$details(
       tags$summary(h3("Limits & performance")),
       tags$ul(
-        tags$li("Large files: streaming preview only; full analysis happens after you click Run Analysis."),
-        tags$li("Memory/timeouts: very wide data or heavy models may take time or fail — reduce columns/rows or simplify options."),
-        tags$li("Non-standard CSVs (exotic encodings, mixed delimiters) may need pre-cleaning.")
+        tags$li("Large files: streaming preview only; full analysis happens after you click Run Analysis.")
       )
     ),
-    
-    # Privacy & security
     tags$details(
       tags$summary(h3("Privacy & security")),
-      p("Data is processed in-memory for your session. It is not shared with other users."),
-      p("No files are permanently stored unless your deployment explicitly enables it. Replace this line if your server persists data.")
+      p("Data is processed in-memory for your session. It is not shared with other users.")
     ),
-    
-    # Example Input Data & Sample Output (kept from original)
     h3("Example Input Data"),
-    p("Replace this with a description or snippet of your example input data format."),
-    
     h3("Sample Output"),
     fluidRow(
-      column(
-        width = 6,
-        placeholder_image_card("Sample Plot 1", "placeholder_plot1.png")
-      ),
-      column(
-        width = 6,
-        placeholder_image_card("Sample Plot 2", "placeholder_plot2.png")
-      )
+      column(width = 6, placeholder_image_card("Sample Plot 1", "placeholder_plot1.png")),
+      column(width = 6, placeholder_image_card("Sample Plot 2", "placeholder_plot2.png"))
     )
   )
 }
 
-
-
 ui <- fluidPage(
   theme = my_theme,
-  tags$head(
-    tags$style(HTML(".theme-toggle { margin-right: 10px; color: #ffffff; }"))
-  ),
+  tags$head(tags$style(HTML(".theme-toggle { margin-right: 10px; color: #ffffff; }"))),
   navbarPage(
     title = "AI-BATS",
     id = "main_navbar",
@@ -356,30 +251,22 @@ ui <- fluidPage(
     tabPanel("Examples & Tutorial", examplesTabUI()),
     navbarMenu("Settings",
                tabPanel("Appearance",
-                        fluidRow(
-                          column(
-                            width = 12,
-                            align = "center",
-                            radioButtons("theme_choice", "Theme:", choices = c("Dark", "Light"), inline = TRUE)
-                          )
-                        )
-               )
-    )
+                        fluidRow(column(width = 12, align = "center", radioButtons("theme_choice", "Theme:", choices = c("Dark", "Light"), inline = TRUE)))
+               ))
   )
 )
 
+#################
+#    SERVER PART
+#################
 
-# -------------------------
-# Server
-# -------------------------
 server <- function(input, output, session){
-
-  # reactive holders
   results      <- reactiveVal(NULL)
   output_plots <- reactiveVal(character(0))
-  
+  out_date_val <- reactiveVal(as.character(Sys.Date()))  # will be updated per run
+
   options(shiny.maxRequestSize = 500 * 1024^2)
-  
+
   # ----- Upload debug in UI -----
   output$debug_upload <- renderPrint({
     if (is.null(input$data_file)) return("❌ No file uploaded yet")
@@ -392,123 +279,143 @@ server <- function(input, output, session){
       exists   = file.exists(df$datapath)
     )
   })
-  
-  # also log to console when upload changes
   observeEvent(input$data_file, {
     if (is.null(input$data_file)) return()
     message("📥 fileInput changed: ", input$data_file$name)
     message("   → datapath: ", input$data_file$datapath, " (exists: ", file.exists(input$data_file$datapath), ")")
   }, ignoreInit = FALSE)
-  
+
+  # robust loader: if CSV -> wrap into list with single dataset, if RDS and list -> use as-is
+  # Robust loader: CSV upload → append to /data/training.rds → return full list
   data_input <- reactive({
     req(input$data_file)
     ext <- tolower(tools::file_ext(input$data_file$name))
-    message("📥 fileInput changed: ", input$data_file$name, " (ext=", ext, ")")
+    message("📥 Loading file: ", input$data_file$name, " (ext=", ext, ")")
     
-    if (ext == "rds") {
-      dat <- readRDS(input$data_file$datapath)
-      message("✅ RDS loaded: class=", paste(class(dat), collapse = ", "), ", length=", ifelse(is.list(dat), length(dat), NA))
-      dat
-    } else {
-      dat <- read.csv(input$data_file$datapath, stringsAsFactors = FALSE)
-      message("✅ CSV loaded: dim=", paste(dim(dat), collapse=" x "))
-      dat
+    if (ext != "csv") {
+      stop("Please upload a CSV file. RDS upload is not supported in this version.")
     }
+    
+    # Read the uploaded CSV
+    df <- read.csv(input$data_file$datapath,
+                   stringsAsFactors = FALSE,
+                   check.names = FALSE,
+                   row.names = 1)
+    mat <- as.matrix(df)
+    dataset_name <- tools::file_path_sans_ext(basename(input$data_file$name))
+    message("✅ CSV loaded: dim=", paste(dim(mat), collapse = " x "), ", dataset_name=", dataset_name)
+    
+    # Create the structure expected by the pipeline
+    new_dataset <- list(intensity = mat, meta = list(tissue = NA, diet = NA))
+    
+    # Load existing training list or create one
+    training_path <- "./data/training.rds"
+    if (file.exists(training_path)) {
+      message("📂 Loading existing training list from: ", training_path)
+      training_list <- readRDS(training_path)
+      if (!is.list(training_list)) {
+        warning("Existing training.rds is not a list — reinitializing.")
+        training_list <- list()
+      }
+    } else {
+      message("🆕 No training.rds found. Creating a new list.")
+      training_list <- list()
+    }
+    
+    # Append new dataset (overwrite if name already exists)
+    training_list[["Query"]] <- new_dataset
+    
+    # Save back to RDS
+    # saveRDS(training_list, training_path)
+    message("💾 Updated training list saved to: ", training_path,
+            " (", length(training_list), " datasets total)")
+    
+    # Return full list to feed into preprocessing
+    return(training_list)
   })
   
-  # --- Run pipeline only when button is pressed ---
+
+  
+  
+  # eventReactive: run the whole pipeline once button pressed
   processed_data <- eventReactive(input$run_analysis, {
     message("▶️ Run Analysis button pressed")
-    
+
     # create run-specific plot dir
     plot_dir <- tempfile("plots_")
     dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
     message(" [run] plot_dir = ", plot_dir)
-    
+
     data_stes <- data_input()
-    validate(
-      need(is.list(data_stes), "Uploaded .rds must be a named list of datasets."),
-      need(length(data_stes) > 0, "The list of datasets is empty.")
-    )
-    
-    # Check normalization
-    max_vals <- c()
-    for(i in 1:length(data_stes)){
-      max_vals <- c(max_vals, max(data_stes[[i]]$intensity, na.rm = TRUE))
+    # Expect data_stes to be a named list of dataset objects each with $intensity and $meta
+    if (!is.list(data_stes) || length(data_stes) == 0) {
+      stop("Uploaded data must be a named list or a single intensity matrix (CSV/RDS).")
     }
-    
-    
-    datasets_to_normalize <- names(data_stes)[which(max_vals > 10000)]
-    
-    # Normalize each data set individually
-    for(i in names(data_stes)){
-      if(i %in% datasets_to_normalize){
-        # Calculate the median per column
-        log_data <- log1p(data_stes[[i]]$intensity)
-        med_col <- apply(log_data, 2, function(x) median(x, na.rm = T))
-        
-        data_stes[[i]]$normalized <- (log_data - matrix(rep(med_col, nrow(log_data)), nrow = nrow(log_data), byrow = T))
-        
-        rownames(data_stes[[i]]$normalized) <- rownames(data_stes[[i]]$intensity)
-        
+
+    # ensure each element has intensity matrix and meta
+    for (nm in names(data_stes)) {
+      if (is.matrix(data_stes[[nm]])) {
+        data_stes[[nm]] <- list(intensity = data_stes[[nm]], meta = list(tissue = NA, diet = NA))
       } else {
-        # If no normalization is needed, just copy the original data
-        data_stes[[i]]$normalized <- data_stes[[i]]$intensity
+        if (is.null(data_stes[[nm]]$intensity)) {
+          stop("Each dataset must contain an 'intensity' matrix. Problem with: ", nm)
+        }
+        if (is.null(data_stes[[nm]]$meta)) data_stes[[nm]]$meta <- list(tissue = NA, diet = NA)
       }
     }
+
+    # Simple normalization: log1p + column-centering if max > threshold
+    max_vals <- sapply(data_stes, function(x) max(x$intensity, na.rm = TRUE))
+    datasets_to_normalize <- names(max_vals)[which(max_vals > 10000)]
+
+    for(i in names(data_stes)){
+      if(i %in% datasets_to_normalize){
+        log_data <- log1p(as.matrix(data_stes[[i]]$intensity))
+        med_col <- apply(log_data, 2, function(x) median(x, na.rm = TRUE))
+        data_stes[[i]]$normalized <- sweep(log_data, 2, med_col, FUN = "-")
+        rownames(data_stes[[i]]$normalized) <- rownames(data_stes[[i]]$intensity)
+        colnames(data_stes[[i]]$normalized) <- make.unique(colnames(data_stes[[i]]$normalized))
+      } else {
+        data_stes[[i]]$normalized <- as.matrix(data_stes[[i]]$intensity)
+      }
+    }
+
     print("Normalization Complete")
-    
-    
-    ##Batch Correction and Data Plotting
-    all_genes <- lapply(data_stes, function(x){
-      return(rownames(x$intensity))
-    })
-    
+
+    #### BATCH CORRECTION
+    all_genes <- lapply(data_stes, function(x){ rownames(x$intensity) })
     all_genes <- Reduce(union, all_genes)
-    
+    ## remove genes name as ""
+    all_genes <- all_genes[nchar(all_genes) > 0]
+
     n <- names(data_stes)
     mat_names <- unlist(lapply(n, function(x) strsplit(x, "_")[[1]][1]))
-    all_matrices <- lapply(data_stes, function(x) {
-      rn <- rownames(x$normalized)
-      
-      # Use match to preserve full all_genes length (missing = NA)
-      m <- x$normalized[match(all_genes, rn), , drop = FALSE]
-      rownames(m) <- all_genes
-      
-      # Convert factors/characters to numeric safely
-      m <- as.data.frame(m)
-      m[] <- lapply(m, function(col) {
-        if (is.character(col) || is.factor(col)) {
-          col[col %in% c("NA", "", "NaN")] <- NA  # unify NA-like strings
-          as.numeric(col)
-        } else {
-          col
-        }
-      })
-      
-      return(as.matrix(m))
+    all_matrices <- lapply(data_stes, function(x){
+      # safe subsetting: ensure rows exist
+      m <- matrix(NA, nrow = length(all_genes), ncol = ncol(x$normalized),
+                  dimnames = list(all_genes, colnames(x$normalized)))
+      common_r <- intersect(rownames(x$normalized), rownames(m))
+      m[common_r, ] <- x$normalized[common_r, , drop = FALSE]
+      return(m)
     })
-    
-    
-    for(i in 1:length(mat_names)){
+
+    for(i in seq_along(mat_names)){
       colnames(all_matrices[[i]]) <- paste0(mat_names[i],"-",colnames(all_matrices[[i]]))
     }
-    
+
+    # Put all together
     all_matrices_mat <- Reduce(cbind, all_matrices)
-    
-    common_prot <- all_matrices_mat[complete.cases(all_matrices_mat), ]
-    
-    print("Common Protein Created")
-    
-    
+    # Keep proteins without all NA columns
+    common_prot <- all_matrices_mat[rowSums(is.na(all_matrices_mat)) < ncol(all_matrices_mat), , drop = FALSE]
+
     df_descroption <- data.frame(ID = colnames(all_matrices_mat), sample = 1:ncol(all_matrices_mat))
     batch_vector <- c()
     for (i in 1:length(all_matrices)){
       batch_vector <- c(batch_vector, rep(i, ncol(all_matrices[[i]])))
     }
     df_descroption$batch <- batch_vector
-    write.csv(df_descroption, file = file.path(getwd(), "all_normalized_description.csv"), row.names = FALSE)
-    batch_data <- read.csv(file.path(getwd(), "all_normalized_description.csv"), sep = ",", header = TRUE)
+    write.csv(df_descroption, file = "all_normalized_description.csv", row.names = F)
+    batch_data <- read.csv("all_normalized_description.csv", sep = ",", header = TRUE)
     
     batch_names <- c(
       "1" = "Haas2021", 
@@ -520,26 +427,11 @@ server <- function(input, output, session){
       "7" = "Melina",
       "8" = "Oeckl",
       "9" = "Rhabi",
-      "10" = "Rosina"
+      "10" = "Rosina",
+      "11" = "Query"
     )
     
-    mat_names <- c("Haas2021", "Haas2022", "Harney", "Johanna", "Kristina", "Kristina", "Melina", "Oeckl", "Rhabi", "Rosina")
-    
-    
-    print("Batch and Matrices created")
-    
-    # Loop through each dataset in data_stes
-    for (dataset_name in names(data_stes)) {
-      # Check if 'meta' exists and contains the column 'protein_type'
-      if ("meta" %in% names(data_stes[[dataset_name]]) &&
-          "protein_type" %in% colnames(data_stes[[dataset_name]]$meta)) {
-        # Rename 'protein_type' to 'tissue'
-        colnames(data_stes[[dataset_name]]$meta)[
-          colnames(data_stes[[dataset_name]]$meta) == "protein_type"
-        ] <- "tissue"
-      }
-    }
-    
+    mat_names <- c("Haas2021", "Haas2022", "Harney", "Johanna", "Kristina", "Kristina", "Melina", "Oeckl", "Rhabi", "Rosina","Query")
     
     all_tissue_types <- c()
     for (l in names(data_stes)) {
@@ -548,375 +440,233 @@ server <- function(input, output, session){
     }
     all_tissue_types <- factor(all_tissue_types, levels = unique(all_tissue_types))
     
-    print("Tissues Completed")
+    # Ensure common_prot is numeric matrix before ComBat
+    common_prot <- as.data.frame(common_prot)
+    print("Common Proteins Complete")
     
+    # Coerce all columns safely
+    common_prot[] <- lapply(common_prot, function(col) {
+      if (is.character(col) || is.factor(col)) {
+        col[col %in% c("NA", "", "NaN")] <- NA
+        suppressWarnings(as.numeric(as.character(col)))
+      } else {
+        as.numeric(col)
+      }
+    })
     
-    # Perform PCA - Before Batch Correction
-    pca_before <- prcomp(t(common_prot), scale.=TRUE)
-    pca_data_before <- data.frame(
-      PC1 = pca_before$x[, 1], 
-      PC2 = pca_before$x[, 2], 
-      Batch = factor(batch_data$batch, levels = names(batch_names), labels = mat_names)
-    )
-    palette <- brewer.pal(n = length(unique(batch_data$batch)), name = "Set3")
-    # 1) Build the plot and store it in a variable
-    p_before <- ggplot(pca_data_before, aes(x = PC1, y = PC2, color = Batch)) +
-      geom_point(size = 3, alpha = 0.8) +
-      scale_color_manual(values = palette) +
-      ggtitle("PCA Plot Before Batch Correction") +
-      theme_minimal() +
-      theme(
-        plot.title   = element_text(hjust = 0.5, size = 16, face = "bold"),
-        axis.title   = element_text(size = 14),
-        axis.text    = element_text(size = 12),
-        legend.title = element_text(size = 14),
-        legend.text  = element_text(size = 12)
-      ) +
-      labs(color = "Batch")
+    # Back to matrix
+    common_prot <- as.matrix(common_prot)
     
-    # 2) Save it into your mounted folder
-    ggsave(
-      filename = file.path(plots_dir, "pca_before_batch_correction.png"),
-      plot     = p_before,
-      width    = 8,      # inches → 800 px at dpi=100
-      height   = 6,      # inches → 600 px at dpi=100
-      units    = "in",
-      dpi      = 100
+    # Drop any rows that are entirely NA
+    # common_prot <- common_prot[rowSums(is.na(common_prot)) < ncol(common_prot), , drop = FALSE]
+    # Drop any rows that contain NA
+    common_prot <- common_prot[complete.cases(common_prot), , drop = FALSE]
+    
+    stopifnot(is.numeric(common_prot))
+    
+    combat_exprs <- sva::ComBat(
+      dat = common_prot,
+      batch = batch_data$batch,
+      mod = NULL,
+      par.prior = TRUE,
+      prior.plots = FALSE
     )
     
+    print("COMBAT Correction Complete")
     
-    
-    combat_exprs <- ComBat(dat=common_prot, batch=batch_data$batch, mod=NULL, par.prior=TRUE, prior.plots=FALSE)
-    
-    print("COMBAT Completed")
-    # Perform PCA - After Batch Correction
-    pca_after <- prcomp(t(combat_exprs), scale.=TRUE)
-    pca_data_after <- data.frame(
-      PC1 = pca_after$x[, 1], 
-      PC2 = pca_after$x[, 2], 
-      Batch = factor(batch_data$batch, levels = names(batch_names), labels = batch_names)
-    )
-    pca_after <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
-      geom_point(size = 3, alpha = 0.8) +  
-      scale_color_manual(values = palette) +
-      ggtitle("PCA Plot After Batch Correction") +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12)
-      ) +
-      labs(color = "Batch")
-    
-    ggsave(
-      filename = file.path(plots_dir, "pca_after_batch_correction.png"),
-      plot     = pca_after,
-      width    = 8,      # inches → 800 px at dpi=100
-      height   = 6,      # inches → 600 px at dpi=100
-      units    = "in",
-      dpi      = 100
-    )
-    print("Batch Correction Complete")
-    
-    ##Projections
-    # auto-generate a named character vector of “prefixes”
+    #########PROJECTIONS
+    # Prepare patterns for projecting back
     patterns_list <- setNames(
       vapply(names(data_stes),
              function(nm) strsplit(nm, "_")[[1]][1],
              FUN.VALUE = character(1)),
       names(data_stes)
     )
-    
-    
-    
-    #Function for projection
-    project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4){
-      
-      # X: Uncorrected matrix with proteins in the rows and samples in the columns
-      # Y: Corrected matrix with proteins in the rows and samples in the columns
-      # number of proteins in X should be larger than number of proteins in Y
-      # k: the number of nearest neighbors to be considered
-      # d: Number of PCs to use
-      #Select all the proteins that need to be projected
-      
-      all_missing_proteins <- setdiff(rownames(X), rownames(Y))
-      name_lengths <- nchar(all_missing_proteins)
-      all_missing_proteins <- all_missing_proteins[name_lengths > 0]
-      all_common_proteins <- intersect(rownames(X), rownames(Y))
-      Y_proj <- Y
-      
-      #Calculate meaningful distance metric
-      pr_X <- princomp(X)
-      
-      #We have a problme with d. When d is larger than the column of the data set we get an out of bound
-      X_dist <- as.matrix(dist(pr_X$scores[,01:d], method = 'euclidean'))
-      
-      
-      for (j in all_missing_proteins){
-        
-        protein_to_project <- j
-        
-        #Find the k closest neighbors that are also available in Y
-        closest_proteins_index <- sort(X_dist[protein_to_project, all_common_proteins])[1:k]
-        closest_proteins <- names(sort(X_dist[protein_to_project, all_common_proteins])[1:k])
-        
-        #Calculate the batch vector
-        batch_vec <- X[closest_proteins,] - Y[closest_proteins,]
-        
-        #Project protein into Y batch space for each remaining neighbor
-        projected_vec <- matrix(0, nrow = nrow(batch_vec), ncol = ncol(batch_vec))
-        for (i in 1:nrow(batch_vec)){
-          projected_vec[i,] <- X[protein_to_project,] - batch_vec[i,]
-        }
-        
-        #Use the average projected vector
-        average_proj <- matrix(colMeans(projected_vec), nrow = 1)
-        
-        # average_proj is a 1×#samples matrix
-        rownames(average_proj) <- protein_to_project
-        
-        #Put the new protein into the batch corrected matrix
-        Y_proj <- rbind(Y_proj, average_proj)
-        
+
+    # Projection helper (kept largely same but defensive)
+    project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4) {
+      X <- as.matrix(X)
+      Y <- as.matrix(Y)
+      if (is.null(dim(X))) X <- matrix(X, ncol = 1, dimnames = list(names(X), "Sample1"))
+      if (is.null(dim(Y))) Y <- matrix(Y, ncol = 1, dimnames = list(names(Y), "Sample1"))
+
+      rn <- rownames(X)
+      valid_rows <- !is.na(rn) & nzchar(rn)
+      X <- X[valid_rows, , drop = FALSE]
+      rownames(X) <- rn[valid_rows]
+
+      common_cols <- intersect(colnames(X), colnames(Y))
+      if (length(common_cols) == 0) {
+        warning("No common sample columns between X and Y → returning Y as-is")
+        return(as.data.frame(Y))
       }
-      
-      return(Y_proj)
-      
+      Xs <- X[, common_cols, drop = FALSE]
+      Ys <- Y[, common_cols, drop = FALSE]
+
+      if (ncol(Xs) != ncol(Ys)) stop("Projection aborted: mismatch in sample counts")
+
+      all_missing_proteins <- setdiff(rownames(Xs), rownames(Ys))
+      all_missing_proteins <- all_missing_proteins[nchar(all_missing_proteins) > 0]
+      all_common_proteins  <- intersect(rownames(Xs), rownames(Ys))
+      Y_proj <- Ys
+
+      pr_X <- try(princomp(Xs), silent = TRUE)
+      if (inherits(pr_X, "try-error") || is.null(pr_X$scores)) {
+        # fallback: use rows as-is
+        for (j in all_missing_proteins) {
+          avg <- matrix(rowMeans(Xs[j, , drop = FALSE], na.rm = TRUE), nrow = 1)
+          rownames(avg) <- j
+          colnames(avg) <- colnames(Ys)
+          Y_proj <- rbind(Y_proj, avg)
+        }
+        return(as.data.frame(Y_proj))
+      }
+      if (is.null(rownames(pr_X$scores))) rownames(pr_X$scores) <- rownames(Xs)
+      d_use <- min(d, ncol(pr_X$scores))
+      X_dist <- as.matrix(dist(pr_X$scores[, 1:d_use, drop = FALSE], method = "euclidean"))
+
+      for (protein_to_project in all_missing_proteins) {
+        if (!protein_to_project %in% rownames(X_dist)) next
+        neighbors <- sort(X_dist[protein_to_project, all_common_proteins, drop = FALSE])[1:min(k, length(all_common_proteins))]
+        closest_proteins <- names(neighbors)
+        if (length(closest_proteins) == 0) next
+
+        batch_vec <- Xs[closest_proteins, , drop = FALSE] - Ys[closest_proteins, , drop = FALSE]
+        projected_vec <- matrix(0, nrow = nrow(batch_vec), ncol = ncol(batch_vec))
+        for (ii in seq_len(nrow(batch_vec))) {
+          projected_vec[ii, ] <- Xs[protein_to_project, ] - batch_vec[ii, ]
+        }
+        average_proj <- matrix(colMeans(projected_vec, na.rm = TRUE), nrow = 1, ncol = ncol(Ys))
+        rownames(average_proj) <- protein_to_project
+        colnames(average_proj) <- colnames(Ys)
+        Y_proj <- rbind(Y_proj, average_proj)
+      }
+      return(as.data.frame(Y_proj))
     }
-    
-    # Iterate over the names of data_stes
+
+    # Project for each dataset
     for (dataset_name in names(data_stes)) {
-      
       X_count <- as.matrix(data_stes[[dataset_name]][["normalized"]])
       X_count[is.na(X_count)] <- 0
-      
-      # Extract the relevant pattern for the current dataset name
-      pattern <- patterns_list[[dataset_name]]  # Match pattern with the dataset name
-      
-      # Use grep to extract columns based on the pattern
-      Y_count <- combat_exprs[, grep(pattern, colnames(combat_exprs), ignore.case = TRUE, value = TRUE)]
-      
-      # Project the data using your custom function
+      pattern <- patterns_list[[dataset_name]]
+      # select columns from combat_exprs by pattern (case-insensitive)
+      cols <- grep(pattern, colnames(combat_exprs), ignore.case = TRUE, value = TRUE)
+      if (length(cols) == 0) {
+        # fallback: use all columns
+        Y_count <- combat_exprs
+      } else {
+        Y_count <- combat_exprs[, cols, drop = FALSE]
+      }
       data_stes[[dataset_name]][["projection"]] <- as.data.frame(project_X_to_Y_proteins(X_count, Y_count))
-      
     }
-    
-    ##Projection Matrix and Imputation
-    all_genes <- lapply(data_stes, function(x){
-      return(rownames(x$projection))
-    })
-    
-    all_genes <- Reduce(union, all_genes)
-    
-    n <- names(data_stes)
-    mat_names <- unlist(lapply(n, function(x) strsplit(x, "_")[[1]][1]))
-    all_matrices <- lapply(data_stes, function(x){
-      m <- x$projection[all_genes,]
-      rownames(m) <- all_genes
-      return(m)
-    })
-    
-    for(i in 1:length(mat_names)){
-      colnames(all_matrices[[i]]) <- paste0(mat_names[i],"-",colnames(all_matrices[[i]]))
-    }
-    
-    all_matrices_proj <- Reduce(cbind, all_matrices)
-    
+
     print("Projection Complete")
-    
-    #HeatMap
-    # Replace NA with a specific value to identify them later
-    all_matrices_mat_na <- all_matrices_proj %>% 
-      mutate(across(everything(), ~replace(., is.na(.), -Inf)))
-    
-    # Gather the data into long format for ggplot
-    long_data <- all_matrices_mat_na %>%
-      rownames_to_column(var = "Row") %>%
-      gather(key = "Column", value = "Value", -Row)
-    
-    # Create a new variable to identify the NA and zero values
-    long_data <- long_data %>%
-      mutate(
-        ValueType = case_when(
-          Value == -Inf ~ "NA",
-          Value == 0 ~ "Zero",
-          TRUE ~ "Other"
-        )
-      )
-    
-    # Define custom colors
-    custom_colors <- c("NA" = "grey", "Zero" = "red", "Other" = "blue")
-    
-    # Create the heatmap
-    heatmap_one <- ggplot(long_data, aes(x = Column, y = Row, fill = ValueType)) +
-      geom_tile() +
-      scale_fill_manual(values = custom_colors) +
-      labs(title = "Heatmap of NA and Zero Values", fill = "Value Type") +
-      theme_minimal() +
-      theme(axis.text.x = element_blank())+
-      theme(axis.text.y = element_blank())
-    
-    ggsave(
-      filename = file.path(plots_dir, "Heatmap of NA.png"),
-      plot     = heatmap_one,
-      width    = 8,      # inches → 800 px at dpi=100
-      height   = 6,      # inches → 600 px at dpi=100
-      units    = "in",
-      dpi      = 100
-    )
-    
-    
-    
+
+    # Build final projection matrix across datasets
+    all_genes <- lapply(data_stes, function(x) rownames(x$projection))
+    all_genes <- Reduce(union, all_genes)
+    mat_names <- unlist(lapply(names(data_stes), function(x) strsplit(x, "_")[[1]][1]))
+    all_matrices <- lapply(seq_along(data_stes), function(i) {
+      name_i <- names(data_stes)[i]
+      m <- data_stes[[name_i]]$projection
+      mat <- matrix(NA, nrow = length(all_genes), ncol = ncol(m), dimnames = list(all_genes, colnames(m)))
+      common_r <- intersect(rownames(m), all_genes)
+      mat[common_r, ] <- as.matrix(m[common_r, , drop = FALSE])
+      colnames(mat) <- paste0(mat_names[i], "-", colnames(mat))
+      return(mat)
+    })
+    all_matrices_proj <- Reduce(cbind, all_matrices)
+
     missing_percentage <- rowSums(is.na(all_matrices_proj)) / ncol(all_matrices_proj) * 100
-    
-    rows_to_impute <- missing_percentage <= 22
-    matrix_to_impute <- as.matrix(all_matrices_proj[rows_to_impute, ])
-    
+    rows_to_impute <- missing_percentage <= 50
+    matrix_to_impute <- as.matrix(all_matrices_proj[rows_to_impute, , drop = FALSE])
+    colnames(matrix_to_impute) <- make.unique(colnames(matrix_to_impute))
+
+    # Create MSnSet, impute using QRILC
     msnset_object <- MSnSet(exprs = matrix_to_impute)
-    
     imputed_result <- imputeLCMD::impute.QRILC(exprs(msnset_object))
-    
     imputed_matrix <- imputed_result[[1]]
-    
-    
-    # Verify
-    sum(is.na(imputed_matrix))   # Should be 0 if imputation was successful
-    
-    all_tissue_types <- c()
-    for (l in names(data_stes)) {
-      tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
-      all_tissue_types <- c(all_tissue_types, tissue_type)
-    }
-    all_tissue_types <- factor(all_tissue_types, levels = unique(all_tissue_types))
-    
-    
-    # Perform PCA - After Batch Correction
-    pca_after <- prcomp(t(imputed_matrix), scale.=TRUE)
-    pca_data_after <- data.frame(
-      PC1 = pca_after$x[, 1], 
-      PC2 = pca_after$x[, 2], 
-      Batch = factor(batch_data$batch, levels = names(batch_names), labels = batch_names)
-    )
-    imputed_pca <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
-      geom_point(size = 3, alpha = 0.8) +  
-      scale_color_manual(values = palette) +
-      ggtitle("PCA Plot After Imputation 18%") +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12)
-      ) +
-      labs(color = "Batch")
-    
-    ggsave(
-      filename = file.path(plots_dir, "PCA Plot After Imputation 18%.png"),
-      plot     = imputed_pca,
-      width    = 8,      # inches → 800 px at dpi=100
-      height   = 6,      # inches → 600 px at dpi=100
-      units    = "in",
-      dpi      = 100
-    )
-    
-    
-    
-    pca_data_after <- data.frame(
-      PC1 = pca_after$x[, 1], 
-      PC2 = pca_after$x[, 2], 
-      Batch = all_tissue_types
-    )
-    tissue_impute <- ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
-      geom_point(size = 3, alpha = 0.8) +  
-      scale_color_manual(values = palette) +  
-      ggtitle("PCA Tissue 18% Imputation") +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12)
-      ) +
-      labs(color = "Tissues")
-    ggsave(
-      filename = file.path(plots_dir, "Tissue Plot After Imputation 18%.png"),
-      plot     = tissue_impute,
-      width    = 8,      # inches → 800 px at dpi=100
-      height   = 6,      # inches → 600 px at dpi=100
-      units    = "in",
-      dpi      = 100
-    )
-    
-    
-    
-    all_tissue_types <- c()
-    for (l in names(data_stes)) {
-      tissue_type <- data_stes[[l]][["meta"]][["diet"]]
-      all_tissue_types <- c(all_tissue_types, tissue_type)
-    }
-    all_tissue_types <- factor(all_tissue_types, levels = unique(all_tissue_types))
-    
-    pca_data_after <- data.frame(
-      PC1 = pca_after$x[, 1], 
-      PC2 = pca_after$x[, 2], 
-      Batch = all_tissue_types
-    )
-    ggplot(pca_data_after, aes(x = PC1, y = PC2, color = Batch)) +
-      geom_point(size = 3, alpha = 0.8) +  
-      scale_color_manual(values = palette) +  
-      ggtitle("PCA Diet 18% Imputation") +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-        axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12)
-      ) +
-      labs(color = "Diet")
-    
-    # Save final outputs (RDS)
-    out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", Sys.Date(), ".rds"))
+
+    print("Imputed Matrix Complete")
+    out_date <- as.character(Sys.Date())
+    out_date_val(out_date)  # store for download handler
+
+    # Save final outputs (RDS & CSV)
+    out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".rds"))
     saveRDS(imputed_matrix, file = out_rds)
     message("Saved imputed matrix to: ", out_rds)
     
-    # Save last plot PNG as well
-    out_plot <- file.path(plot_dir, "last_plot.png")
-    ggsave(filename = out_plot, plot = last_plot(), width = 10, height = 7, dpi = 100)
-    message("Saved last_plot to: ", out_plot)
-    
-    # Return structured result for the app (matrix + plot_dir + small gallery)
+
+    out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".csv"))
+    write.csv(imputed_matrix, file = out_csv, row.names = TRUE)
+    message("Saved imputed CSV to: ", out_csv)
+
+    # Make a simple PCA plot and save it (robust)
+    pca_ok <- try({
+      pr <- prcomp(t(imputed_matrix), center = TRUE, scale. = TRUE)
+      pc_df <- as.data.frame(pr$x[, 1:2, drop = FALSE])
+      pc_df$sample <- rownames(pc_df)
+      p <- ggplot(pc_df, aes(x = PC1, y = PC2, label = sample)) + geom_point() + geom_text(hjust = 1.2, size = 3) + ggtitle("Sample PCA (imputed matrix)")
+      out_plot <- file.path(plot_dir, "pca_imputed.png")
+      ggsave(filename = out_plot, plot = p, width = 8, height = 6, dpi = 150)
+      TRUE
+    }, silent = TRUE)
+    if (!inherits(pca_ok, "try-error")) message("Saved PCA plot")
+
+    # Run python pipeline if available (non-fatal)
+    run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
+                                    protein_data_path = out_csv,
+                                    sample_labels_path = NULL,
+                                    output_dir = OUTPUT_DIR,
+                                    log_file = file.path(output_dir, "browning_pipeline.log")) {
+      py3 <- Sys.which("python3")
+      if (!nzchar(py3)) {
+        message("python3 not found on PATH — skipping Python pipeline.")
+        return(invisible(NULL))
+      }
+      python_script_full <- file.path(getwd(), "python_scripts", "browning_pipeline.py")
+      if (!file.exists(python_script_full)) {
+        message("Python script not found at ", python_script_full, " — skipping Python pipeline.")
+        return(invisible(NULL))
+      }
+      args <- c(python_script_full, "--protein_data_path", protein_data_path)
+      if (!is.null(sample_labels_path)) args <- c(args, "--sample_labels_path", sample_labels_path)
+      exit_code <- system2(command = py3, args = args, stdout = log_file, stderr = log_file)
+      if (exit_code != 0) {
+        message("Python pipeline returned non-zero exit code: ", exit_code, ". See log: ", log_file)
+        return(invisible(NULL))
+      } else {
+        message("Python pipeline completed successfully. Log: ", log_file)
+        return(invisible(TRUE))
+      }
+    }
+
+    # Non-blocking attempt to run python (errors are non-fatal)
+    try(run_python_pipeline(protein_data_path = out_csv), silent = TRUE)
+
+    # Return results
     list(
       imputed_matrix = imputed_matrix,
       plot_dir = plot_dir,
-      p_before = p_before,
-      p_after = p_after,
-      p_imputed = imputed_pca
+      out_date = out_date
     )
-  }) # end processed_data eventReactive
-  
-  # This observer triggers when button is pressed (reads the cached eventReactive result)
+  }, ignoreNULL = FALSE)
+
+  # observer that reacts to the button and updates UI using processed_data()
   observeEvent(input$run_analysis, {
     message("⚡ collect processed_data() result and update UI")
     pd <- NULL
     try({
       pd <- processed_data()
     }, silent = FALSE)
-    
+
     if (is.null(pd)) {
       output$analysis_status <- renderText("❌ processed_data() returned NULL — check console.")
       message("processed_data returned NULL")
       return()
     }
-    # store results
     results(pd)
     output$analysis_status <- renderText("✅ Analysis finished.")
-    
-    # collect PNGs from plot_dir (if any) and publish to UI
     if (!is.null(pd$plot_dir) && dir.exists(pd$plot_dir)) {
       pngs <- list.files(pd$plot_dir, pattern = "\\.png$", full.names = TRUE)
       output_plots(pngs)
@@ -925,7 +675,7 @@ server <- function(input, output, session){
       output_plots(character(0))
     }
   }, ignoreInit = TRUE)
-  
+
   # Preview table (shows the imputed_matrix head)
   output$preview_table <- renderDT({
     pd <- results()
@@ -936,7 +686,7 @@ server <- function(input, output, session){
       datatable(data.frame(Note = "No matrix in results"), options = list(dom = 't'))
     }
   })
-  
+
   output$non_table_preview <- renderPrint({
     obj <- results()
     if (is.null(obj)) {
@@ -945,7 +695,7 @@ server <- function(input, output, session){
       str(obj, max.level = 1)
     }
   })
-  
+
   # Results table
   output$results_table <- renderDT({
     dat <- results(); req(!is.null(dat))
@@ -957,8 +707,8 @@ server <- function(input, output, session){
       datatable(data.frame(Note = "No renderable data frame in results"), options = list(dom = 't'))
     }
   })
-  
-  # Plots gallery
+
+  # Plots gallery UI
   output$plots_gallery <- renderUI({
     imgs <- output_plots(); req(length(imgs) > 0)
     tagList(lapply(seq_along(imgs), function(i) {
@@ -969,24 +719,24 @@ server <- function(input, output, session){
       imageOutput(imgId, width = "300px")
     }))
   })
-  
+
   # Download processed data
   output$download_data <- downloadHandler(
     filename = function() {
-      paste0("processed_data_", Sys.Date(), ".csv")
+      od <- out_date_val()
+      paste0("processed_data_", od, ".csv")
     },
     content = function(file) {
       dat <- results(); req(!is.null(dat))
-      if (is.data.frame(dat)) {
-        write.csv(dat, file, row.names = FALSE)
-      } else if (is.list(dat) && !is.null(dat$imputed_matrix)) {
-        write.csv(as.data.frame(dat$imputed_matrix), file, row.names = FALSE)
+      if (is.list(dat) && !is.null(dat$imputed_matrix)) {
+        write.csv(as.data.frame(dat$imputed_matrix), file = file, row.names = TRUE)
+      } else if (is.data.frame(dat)) {
+        write.csv(dat, file = file, row.names = FALSE)
       } else {
         writeLines("Output is not a data frame.", file)
       }
     }
   )
-} # end server
+}
 
 shinyApp(ui = ui, server = server)
-
