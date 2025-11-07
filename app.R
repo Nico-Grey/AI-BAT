@@ -598,7 +598,7 @@ server <- function(input, output, session){
     
 
     out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".csv"))
-    write.csv(imputed_matrix, file = out_csv, row.names = TRUE)
+    write.csv(imputed_matrix, file = paste0("imputed_matrix_", out_date, ".csv"), row.names = TRUE)
     message("Saved imputed CSV to: ", out_csv)
 
     # Make a simple PCA plot and save it (robust)
