@@ -457,16 +457,18 @@ server <- function(input, output, session){
       "2" = "Haas2022", 
       "3" = "Harney", 
       "4" = "Johanna", 
-      "5" = "Kristina ewat", 
-      "6" = "Kristina iwat",
+      "5" = "Kristinaewat", 
+      "6" = "Kristinaiwat",
       "7" = "Melina",
       "8" = "Oeckl",
       "9" = "Rhabi",
-      "10" = "Rosina",
-      "11" = "Query"
+      "10" = "WangBAT",
+      "11" = "WangWAT",
+      "12" = "Williams",
+      "13" = "Query"
     )
     
-    mat_names <- c("Haas2021", "Haas2022", "Harney", "Johanna", "Kristina", "Kristina", "Melina", "Oeckl", "Rhabi", "Rosina","Query")
+    mat_names <- c("Haas2021", "Haas2022", "Harney", "Johanna", "Kristinaewat", "Kristinaiwat", "Melina", "Oeckl", "Rhabi", "WangBAT", "WangWAT", "Williams","Query")
     
     all_tissue_types <- c()
     for (l in names(data_stes)) {
