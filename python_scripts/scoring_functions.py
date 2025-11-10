@@ -32,7 +32,7 @@ def calculate_pca_browning_score(protein_df, n_components=2):
     return scores, pca_feature_loadings#, pc_df, pca_feature_loadings
 
 
-def calculate_composite_score(all_scores_df, weights):
+def calculate_composite_score(all_scores_df, weights=None):
     composite_score = pd.Series(0.0, index=all_scores_df.index)
     total_weight = 0.0 # Ensure float for potential division
     
@@ -43,7 +43,9 @@ def calculate_composite_score(all_scores_df, weights):
     # Keep track of how many weighted scores contributed to each sample's composite score
     # This is useful if we want to normalize by sum of weights of *contributing* scores
     # For now, simpler: normalize by sum of all *intended* weights (total_weight)
-    
+    if weights == None:
+        weights = {i:1 for i in all_scores_df.columns}
+
     for score_name, weight in weights.items():
         if score_name in all_scores_df.columns:
             # Fill NaN with 0 for summation; consider other imputation if 0 is not appropriate

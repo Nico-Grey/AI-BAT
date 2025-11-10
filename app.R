@@ -19,6 +19,7 @@ library(glue)
 # -------------------------
 # APP_DIR <- Sys.getenv("APP_DIR", "/app")
 APP_DIR <- Sys.getenv("APP_DIR", tempdir())
+APP_DIR = "./"
 
 gsea_from_env <- Sys.getenv("GSEA_PATHWAY_DIR", unset = "")
 gsea_pathway_dir <- if (nzchar(gsea_from_env)) {
@@ -30,8 +31,8 @@ dir.create(gsea_pathway_dir, recursive = TRUE, showWarnings = FALSE)
 options(gsea_pathway_dir = gsea_pathway_dir)
 
 out_date <- as.character(Sys.Date())
-PLOTS_DIR  <- Sys.getenv("PLOTS_DIR", file.path(APP_DIR, "plots"))
-OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "output"))
+PLOTS_DIR  <- Sys.getenv("PLOTS_DIR", file.path(APP_DIR, "/plots"))
+OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "/output"))
 dir.create(PLOTS_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -416,8 +417,8 @@ server <- function(input, output, session){
       batch_vector <- c(batch_vector, rep(i, ncol(all_matrices[[i]])))
     }
     df_descroption$batch <- batch_vector
-    write.csv(df_descroption, file = "all_normalized_description.csv", row.names = F)
-    batch_data <- read.csv("all_normalized_description.csv", sep = ",", header = TRUE)
+    write.csv(df_descroption, file = paste0(OUTPUT_DIR,"/all_normalized_description.csv"), row.names = F)
+    batch_data <- read.csv(paste0(OUTPUT_DIR,"/all_normalized_description.csv"), sep = ",", header = TRUE)
     
     ## make a new data frame with meta data info
     meta_data = data.frame(
@@ -428,7 +429,7 @@ server <- function(input, output, session){
       stringsAsFactors = FALSE
     )
     for (l in names(data_stes)) {
-      print(l)
+
       tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
       diet_type <- data_stes[[l]][["meta"]][["diet"]]
       cohort = strsplit(l, "_")[[1]][1]
@@ -439,14 +440,14 @@ server <- function(input, output, session){
         diet = diet_type,
         stringsAsFactors = FALSE
       ))
-      print(paste0(cohort,"-",data_stes[[l]][["meta"]][["sample"]]))
+
     }
     
     meta_data$diet = ifelse(meta_data$diet == "High Fat Diet", "HFD", 
                             ifelse(meta_data$diet %in% c("Standard Diet","AdLib"), "CD", meta_data$diet))
   
     
-    write.csv(meta_data, file = file.path(paste0("meta_data", out_date, ".csv")), row.names = F)
+    write.csv(meta_data, file = paste0(OUTPUT_DIR,"/meta_data", out_date, ".csv"), row.names = F)
     
     
     print("Meta data extraction complete")
@@ -631,7 +632,7 @@ server <- function(input, output, session){
     
 
     out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".csv"))
-    write.csv(imputed_matrix, file = paste0("imputed_matrix_", out_date, ".csv"), row.names = TRUE)
+    write.csv(imputed_matrix, file = paste0(OUTPUT_DIR,"/imputed_matrix_", out_date, ".csv"), row.names = TRUE)
     message("Saved imputed CSV to: ", out_csv)
 
     # Make a simple PCA plot and save it (robust)
@@ -648,8 +649,8 @@ server <- function(input, output, session){
 
     # Run python pipeline if available (non-fatal)
     run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
-                                    protein_data_path = paste0("imputed_matrix_", out_date, ".csv"),
-                                    sample_labels_path = paste0("meta_data", out_date, ".csv"),
+                                    protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
+                                    sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
                                     output_dir = OUTPUT_DIR,
                                     log_file = file.path(output_dir, "browning_pipeline.log")) {
       py3 <- Sys.which("python3")

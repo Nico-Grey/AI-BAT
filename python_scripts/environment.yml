@@ -10,9 +10,9 @@ dependencies:
   - umap-learn
   - matplotlib
   - seaborn
-  - tabpfn
   - scipy
   - shap
   - pip
   - pip:
       - tabpfn
+      - tabpfn-extensions[all]

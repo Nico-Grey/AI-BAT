@@ -155,7 +155,7 @@ def get_tabpfn_score(protein_df, sample_labels):
     return scores, clf
 
 
-def get_shaps(tabpfn, protein_df, sample_labels, file_name="shap_values"):
+def get_shaps(tabpfn, protein_df, sample_labels, file_name="shap_values", output_dir="./script_outputs"):
     """
     Get SHAP values for the TabPFN model.
     """
@@ -169,7 +169,7 @@ def get_shaps(tabpfn, protein_df, sample_labels, file_name="shap_values"):
     algorithm="permutation",
     max_evals = 1500,)
 
-    np.save(f"script_outputs/{file_name}.npy", shap_values)
+    np.save(f"{output_dir}/{file_name}.npy", shap_values)
 
 # Create visualization
     fig = interpretability.shap.plot_shap(shap_values)
