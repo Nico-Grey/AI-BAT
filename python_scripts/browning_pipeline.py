@@ -124,6 +124,9 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
     # SECTION 2: FEATURE SELECTION WITH LASSO REGRESSION
     # ==========================================================================
     
+    # Alternative to lasso_genes: concatenate brown_markers and white markers
+    lasso_genes = brown_markers + white_markers
+
     # --- Load or Calculate LASSO-Selected Features ---
     # LASSO regression helps identify the most important features for classification
     # by applying L1 regularization to select features with non-zero coefficients
@@ -138,8 +141,6 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
             with open(f'{output_dir}/lasso.pkl', 'wb') as f:
                 pickle.dump(lasso_genes, f)
 
-    # Alternative to lasso_genes: concatenate brown_markers and white markers
-    lasso_genes = brown_markers + white_markers
 
     # --- Generate Base Visualization Plots ---
     # Create comprehensive visualization plots with different feature sets and scaling options
