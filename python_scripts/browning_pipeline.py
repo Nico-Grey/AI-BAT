@@ -230,14 +230,14 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
     # --- TabPFN with Cross-Validation ---
     # TabPFN (Prior-Fitted Networks) is a state-of-the-art method for tabular data
     # that leverages pre-trained neural networks for few-shot learning
-    import torch
-    print("--- Calculating TabPFN-based Score ---")
-    tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
-            protein_df.copy(), sample_labels, batch_labels,
-            positive_class='Brown', negative_class='White',
-            clf=TabPFNClassifier(ignore_pretraining_limits=True, device="cuda" if torch.cuda.is_available() else "cpu"), name='tabpfn'
-        )
-    all_sample_scores = all_sample_scores.join(tabpfn_cv_scores_df)
+    # import torch
+    # print("--- Calculating TabPFN-based Score ---")
+    # tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
+    #         protein_df.copy(), sample_labels, batch_labels,
+    #         positive_class='Brown', negative_class='White',
+    #         clf=TabPFNClassifier(ignore_pretraining_limits=True, device="cuda" if torch.cuda.is_available() else "cpu"), name='tabpfn'
+    #     )
+    # all_sample_scores = all_sample_scores.join(tabpfn_cv_scores_df)
 
     # ==========================================================================
     # SECTION 8: LOGISTIC REGRESSION CLASSIFICATION
@@ -337,24 +337,24 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
     # --- SHAP Analysis for LASSO-selected Features ---
     # SHAP (SHapley Additive exPlanations) provides feature-level explanations
     # for individual predictions, helping understand model decision-making
-    print("--- Calculating SHAP values for LASSO-selected features ---")
-    if compute_shaps:
-        tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
-                protein_df.copy()[lasso_genes], sample_labels, batch_labels,
-                positive_class='Brown', negative_class='White',
-                clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
-            )
-        shaps, fit = get_shaps(tabpfn, protein_df.copy()[lasso_genes], sample_labels, file_name="shap_values_lasso", output_dir=output_dir)
+    # print("--- Calculating SHAP values for LASSO-selected features ---")
+    # if compute_shaps:
+    #     tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
+    #             protein_df.copy()[lasso_genes], sample_labels, batch_labels,
+    #             positive_class='Brown', negative_class='White',
+    #             clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
+    #         )
+    #     shaps, fit = get_shaps(tabpfn, protein_df.copy()[lasso_genes], sample_labels, file_name="shap_values_lasso", output_dir=output_dir)
         
-        # --- SHAP Analysis for Marker Genes ---
-        # Analyze SHAP values specifically for biologically-relevant marker genes
-        print("--- Calculating SHAP values for marker genes ---")
-        tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
-                protein_df.copy()[markers], sample_labels, batch_labels,
-                positive_class='Brown', negative_class='White',
-                clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
-            )
-        shaps, fit = get_shaps(tabpfn, protein_df.copy()[markers], sample_labels, file_name="shap_values_markers", output_dir=output_dir)
+    #     # --- SHAP Analysis for Marker Genes ---
+    #     # Analyze SHAP values specifically for biologically-relevant marker genes
+    #     print("--- Calculating SHAP values for marker genes ---")
+    #     tabpfn_cv_scores_df, tabpfn = calculate_ml_browning_score(
+    #             protein_df.copy()[markers], sample_labels, batch_labels,
+    #             positive_class='Brown', negative_class='White',
+    #             clf=TabPFNClassifier(ignore_pretraining_limits=True, device='cuda'), name='tabpfn'
+    #         )
+    #     shaps, fit = get_shaps(tabpfn, protein_df.copy()[markers], sample_labels, file_name="shap_values_markers", output_dir=output_dir)
 
     # ==========================================================================
     # SECTION 12: FINAL VISUALIZATIONS AND SUMMARY OUTPUTS
