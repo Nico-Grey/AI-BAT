@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/Users/Yu_J/Documents/GitHub/AI-BAT/python_scripts/browning_pipeline.py", line 45, in <module>
-    from sklearn.preprocessing import StandardScaler, LabelEncoder
-ModuleNotFoundError: No module named 'sklearn'
