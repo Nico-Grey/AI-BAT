@@ -24,7 +24,7 @@ def load_example_data(protein_data_path = '../data/data_python/corrected.csv', p
     white_markers_list = wc
     
     sample_labels = pd.read_csv(sample_labels_path, index_col=1, header=0)
-    d = {"BAT": "Brown", "eWAT": "White", "iWAT": "Intermediate", "sWAT":"Intermediate"}
+    d = {"BAT": "Brown", "eWAT": "White", "WAT": "White", "iWAT": "Intermediate", "sWAT":"Intermediate"}
     sl = [d[i] for i in sample_labels.tissue.to_list()]
     sample_labels_series = pd.Series(sl, index=sample_labels.index, name="Status")
     batch_labels_series = pd.Series(batch, index=sample_labels.index, name="Batch")
