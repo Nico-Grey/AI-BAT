@@ -434,7 +434,7 @@ server <- function(input, output, session){
       diet_type <- data_stes[[l]][["meta"]][["diet"]]
       cohort = strsplit(l, "_")[[1]][1]
       meta_data <- rbind(meta_data, data.frame(
-        file_name = paste0(cohort,"-",data_stes[[l]][["meta"]][["sample"]]),
+        file_name = paste0(cohort,"-",cohort,"-",data_stes[[l]][["meta"]][["sample"]]),
         label = paste0(tissue_type,"-",diet_type),
         tissue = tissue_type,
         diet = diet_type,
