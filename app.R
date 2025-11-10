@@ -29,6 +29,7 @@ gsea_pathway_dir <- if (nzchar(gsea_from_env)) {
 dir.create(gsea_pathway_dir, recursive = TRUE, showWarnings = FALSE)
 options(gsea_pathway_dir = gsea_pathway_dir)
 
+out_date <- as.character(Sys.Date())
 PLOTS_DIR  <- Sys.getenv("PLOTS_DIR", file.path(APP_DIR, "plots"))
 OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "output"))
 dir.create(PLOTS_DIR,  showWarnings = FALSE, recursive = TRUE)
@@ -306,7 +307,7 @@ server <- function(input, output, session){
     message("✅ CSV loaded: dim=", paste(dim(mat), collapse = " x "), ", dataset_name=", dataset_name)
     
     # Create the structure expected by the pipeline
-    new_dataset <- list(intensity = mat, meta = list(tissue = NA, diet = NA))
+    new_dataset <- list(intensity = mat, meta = list(sample = colnames(mat), tissue = NA, diet = NA))
     
     # Load existing training list or create one
     training_path <- "./data/training.rds"
@@ -353,16 +354,17 @@ server <- function(input, output, session){
     }
 
     # ensure each element has intensity matrix and meta
-    for (nm in names(data_stes)) {
-      if (is.matrix(data_stes[[nm]])) {
-        data_stes[[nm]] <- list(intensity = data_stes[[nm]], meta = list(tissue = NA, diet = NA))
-      } else {
-        if (is.null(data_stes[[nm]]$intensity)) {
-          stop("Each dataset must contain an 'intensity' matrix. Problem with: ", nm)
-        }
-        if (is.null(data_stes[[nm]]$meta)) data_stes[[nm]]$meta <- list(tissue = NA, diet = NA)
-      }
-    }
+    # for (nm in names(data_stes)) {
+    #   if (is.matrix(data_stes[[nm]])) {
+    #     data_stes[[nm]] <- list(intensity = data_stes[[nm]], 
+    #                             meta = list(tissue = NA, diet = NA))
+    #   } else {
+    #     if (is.null(data_stes[[nm]]$intensity)) {
+    #       stop("Each dataset must contain an 'intensity' matrix. Problem with: ", nm)
+    #     }
+    #     if (is.null(data_stes[[nm]]$meta)) data_stes[[nm]]$meta <- list(tissue = NA, diet = NA)
+    #   }
+    # }
 
     # Simple normalization: log1p + column-centering if max > threshold
     max_vals <- sapply(data_stes, function(x) max(x$intensity, na.rm = TRUE))
@@ -416,6 +418,38 @@ server <- function(input, output, session){
     df_descroption$batch <- batch_vector
     write.csv(df_descroption, file = "all_normalized_description.csv", row.names = F)
     batch_data <- read.csv("all_normalized_description.csv", sep = ",", header = TRUE)
+    
+    ## make a new data frame with meta data info
+    meta_data = data.frame(
+      file_name = character(),
+      label = character(),
+      tissue = character(),
+      diet = character(),
+      stringsAsFactors = FALSE
+    )
+    for (l in names(data_stes)) {
+      print(l)
+      tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
+      diet_type <- data_stes[[l]][["meta"]][["diet"]]
+      cohort = strsplit(l, "_")[[1]][1]
+      meta_data <- rbind(meta_data, data.frame(
+        file_name = paste0(cohort,"-",data_stes[[l]][["meta"]][["sample"]]),
+        label = paste0(tissue_type,"-",diet_type),
+        tissue = tissue_type,
+        diet = diet_type,
+        stringsAsFactors = FALSE
+      ))
+      print(paste0(cohort,"-",data_stes[[l]][["meta"]][["sample"]]))
+    }
+    
+    meta_data$diet = ifelse(meta_data$diet == "High Fat Diet", "HFD", 
+                            ifelse(meta_data$diet %in% c("Standard Diet","AdLib"), "CD", meta_data$diet))
+  
+    
+    write.csv(meta_data, file = file.path(paste0("meta_data", out_date, ".csv")), row.names = F)
+    
+    
+    print("Meta data extraction complete")
     
     batch_names <- c(
       "1" = "Haas2021", 
@@ -588,7 +622,6 @@ server <- function(input, output, session){
     imputed_matrix <- imputed_result[[1]]
 
     print("Imputed Matrix Complete")
-    out_date <- as.character(Sys.Date())
     out_date_val(out_date)  # store for download handler
 
     # Save final outputs (RDS & CSV)
@@ -615,8 +648,8 @@ server <- function(input, output, session){
 
     # Run python pipeline if available (non-fatal)
     run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
-                                    protein_data_path = out_csv,
-                                    sample_labels_path = NULL,
+                                    protein_data_path = paste0("imputed_matrix_", out_date, ".csv"),
+                                    sample_labels_path = paste0("meta_data", out_date, ".csv"),
                                     output_dir = OUTPUT_DIR,
                                     log_file = file.path(output_dir, "browning_pipeline.log")) {
       py3 <- Sys.which("python3")
