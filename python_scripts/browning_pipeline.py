@@ -120,6 +120,8 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
     protein_df, brown_markers, white_markers, sample_labels, batch_labels, lda_features, markers, tissue, diet= load_example_data(protein_data_path = protein_data_path, precomputed_lasso_coefs_path=precomputed_lasso_coefs_path, 
                       brown_markers_path=brown_markers_path, sample_labels_path=sample_labels_path)
 
+    #print(protein_df.index)
+    #print(sample_labels.index)
     # ==========================================================================
     # SECTION 2: FEATURE SELECTION WITH LASSO REGRESSION
     # ==========================================================================

@@ -76,6 +76,7 @@ class MLBrowningPipeline:
         """Fit the pipeline on training data."""
 
         protein_expr = protein_df.join(sample_labels_full, how='inner')
+        #print(protein_expr['Status'].value_counts())
         train = protein_expr[protein_expr['Status'].isin([self.positive_class, self.negative_class])]
         
         X_train = train.drop(columns=['Status'])
