@@ -103,9 +103,12 @@ example_weights = {
 # ==============================================================================
 
 # --- Main Execution ---
-def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv', precomputed_lasso_coefs_path='./data/python_input/coefs_from_lasso.pkl', 
-                      brown_markers_path='./data/python_input/marker.txt', sample_labels_path='./output/meta_data2025-11-10.csv', 
-                      recompute_lasso_markers=False, output_dir='./data/python_output', compute_shaps=False):
+def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv', 
+         precomputed_lasso_coefs_path='./data/python_input/coefs_from_lasso.pkl', 
+         brown_markers_path='./data/python_input/marker.txt', 
+         sample_labels_path='./output/meta_data2025-11-10.csv', 
+         recompute_lasso_markers=False, 
+         output_dir='./data/python_output', compute_shaps=False):
     
     # ==========================================================================
     # SECTION 1: DATA LOADING AND INITIALIZATION
@@ -375,10 +378,10 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv', precomput
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="AI-BATS Browning Pipeline")
-    parser.add_argument("--protein_data_path", type=str, default='./data/data_python/corrected.csv')
-    parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='./data/data_python/coefs_from_lasso.pkl')
-    parser.add_argument("--brown_markers_path", type=str, default='./data/data_python/marker.txt')
-    parser.add_argument("--sample_labels_path", type=str, default='./data/data_python/meta107_samples.csv')
+    parser.add_argument("--protein_data_path", type=str, default='./output/imputed_matrix_2025-11-10.csv')
+    parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='./data/python_input/coefs_from_lasso.pkl')
+    parser.add_argument("--brown_markers_path", type=str, default='./data/python_input/marker.txt')
+    parser.add_argument("--sample_labels_path", type=str, default='./output/meta_data2025-11-10.csv')
     parser.add_argument("--recompute_lasso_markers", type=bool, default=False)
     parser.add_argument("--compute_shaps", type=bool, default=False)
     args = parser.parse_args()
