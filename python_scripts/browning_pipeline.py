@@ -108,7 +108,7 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
          brown_markers_path='./data/python_input/marker.txt', 
          sample_labels_path='./output/meta_data2025-11-10.csv', 
          recompute_lasso_markers=False, 
-         output_dir='./data/python_output', compute_shaps=False):
+         output_dir='./output/python_output', compute_shaps=False):
     
     # ==========================================================================
     # SECTION 1: DATA LOADING AND INITIALIZATION
@@ -385,7 +385,7 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="AI-BATS Browning Pipeline")
-    parser.add_argument("--protein_data_path", type=str, default='../output/imputed_matrix_2025-11-10.csv')
+    parser.add_argument("--protein_data_path", type=str, default='./output/imputed_matrix_2025-11-10.csv')
     parser.add_argument("--precomputed_lasso_coefs_path", type=str, default='../data/python_input/coefs_from_lasso.pkl')
     parser.add_argument("--brown_markers_path", type=str, default='../data/python_input/marker.txt')
     parser.add_argument("--sample_labels_path", type=str, default='../output/meta_data2025-11-10.csv')
