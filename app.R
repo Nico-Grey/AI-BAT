@@ -99,29 +99,61 @@ placeholder_image_card <- function(title, file, height = "250px") {
 }
 
 resultsTabUI <- function() {
-  fluidPage(
-    fluidRow(
-      column(
-        width = 12,
-        h3("Processed Data"),
-        downloadButton("download_data", "Download Data", class = "btn-secondary")
+  tabsetPanel(
+    id = "results_tabs",
+    tabPanel(
+      title = "Processed Data",
+      fluidPage(
+        fluidRow(
+          column(
+            width = 12,
+            h3("Processed Data"),
+            downloadButton("download_data", "Download Data", class = "btn-secondary")
+          )
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            h3("Plots"),
+            p("Interactive gallery of output plots."),
+            div(
+              class = "plot-gallery",
+              uiOutput("plots_gallery")
+            )
+          )
+        )
       )
     ),
-    fluidRow(
-      column(
-        width = 12,
-        h3("Plots"),
-        p("Interactive gallery of output plots."),
-        div(
-          class = "plot-gallery",
-          placeholder_image_card("Plot 1", "placeholder_plot1.png"),
-          placeholder_image_card("Plot 2", "placeholder_plot2.png"),
-          placeholder_image_card("Plot 3", "placeholder_plot3.png")
+    tabPanel(
+      title = "Final Results",
+      fluidPage(
+        fluidRow(
+          column(
+            width = 12,
+            h3("Final Results Summary"),
+            p("This section displays the final processed outcomes, analysis metrics, or combined summaries."),
+            verbatimTextOutput("final_summary"),
+            br(),
+            h4("Final Results Table"),
+            DTOutput("final_results_table")
+          )
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            h4("Final Figures"),
+            div(
+              class = "plot-gallery",
+              placeholder_image_card("Final Plot 1", "placeholder_plot1.png"),
+              placeholder_image_card("Final Plot 2", "placeholder_plot2.png")
+            )
+          )
         )
       )
     )
   )
 }
+
 
 examplesTabUI <- function() {
   fluidPage(
@@ -642,7 +674,11 @@ server <- function(input, output, session){
       pr <- prcomp(t(imputed_matrix), center = TRUE, scale. = TRUE)
       pc_df <- as.data.frame(pr$x[, 1:2, drop = FALSE])
       pc_df$sample <- rownames(pc_df)
-      p <- ggplot(pc_df, aes(x = PC1, y = PC2, label = sample)) + geom_point() + geom_text(hjust = 1.2, size = 3) + ggtitle("Sample PCA (imputed matrix)")
+      p <- ggplot(pc_df, aes(x = PC1, y = PC2, label = sample)) + 
+        geom_point() + 
+        geom_text(hjust = 1.2, size = 3) + 
+        ggtitle("Sample PCA (imputed matrix)")
+      
       out_plot <- file.path(plot_dir, "pca_imputed.png")
       ggsave(filename = out_plot, plot = p, width = 8, height = 6, dpi = 150)
       TRUE
@@ -650,36 +686,40 @@ server <- function(input, output, session){
     if (!inherits(pca_ok, "try-error")) message("Saved PCA plot")
 
     # Run python pipeline if available (non-fatal)
-    run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
-                                    protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
-                                    sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
-                                    output_dir = OUTPUT_DIR,
-                                    log_file = file.path(output_dir, "browning_pipeline.log")) {
-      py3 <- Sys.which("python3")
-      if (!nzchar(py3)) {
-        message("python3 not found on PATH — skipping Python pipeline.")
-        return(invisible(NULL))
-      }
-      python_script_full <- file.path(getwd(), "python_scripts", "browning_pipeline.py")
-      if (!file.exists(python_script_full)) {
-        message("Python script not found at ", python_script_full, " — skipping Python pipeline.")
-        return(invisible(NULL))
-      }
-      args <- c(python_script_full, "--protein_data_path", protein_data_path)
-      if (!is.null(sample_labels_path)) args <- c(args, "--sample_labels_path", sample_labels_path)
-      exit_code <- system2(command = py3, args = args, stdout = log_file, stderr = log_file)
-      if (exit_code != 0) {
-        message("Python pipeline returned non-zero exit code: ", exit_code, ". See log: ", log_file)
-        return(invisible(NULL))
-      } else {
-        message("Python pipeline completed successfully. Log: ", log_file)
-        return(invisible(TRUE))
-      }
-    }
-
-    # Non-blocking attempt to run python (errors are non-fatal)
-    try(run_python_pipeline(protein_data_path = out_csv), silent = TRUE)
-
+    # run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
+    #                                 protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
+    #                                 sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
+    #                                 output_dir = OUTPUT_DIR,
+    #                                 log_file = file.path(output_dir, "browning_pipeline.log")) {
+    #   py3 <- Sys.which("python3")
+    #   if (!nzchar(py3)) {
+    #     message("python3 not found on PATH — skipping Python pipeline.")
+    #     return(invisible(NULL))
+    #   }
+    #   python_script_full <- file.path(getwd(), "python_scripts", "browning_pipeline.py")
+    #   if (!file.exists(python_script_full)) {
+    #     message("Python script not found at ", python_script_full, " — skipping Python pipeline.")
+    #     return(invisible(NULL))
+    #   }
+    #   args <- c(python_script_full, "--protein_data_path", protein_data_path)
+    #   if (!is.null(sample_labels_path)) args <- c(args, "--sample_labels_path", sample_labels_path)
+    #   exit_code <- system2(command = py3, args = args, stdout = log_file, stderr = log_file)
+    #   if (exit_code != 0) {
+    #     message("Python pipeline returned non-zero exit code: ", exit_code, ". See log: ", log_file)
+    #     return(invisible(NULL))
+    #   } else {
+    #     message("Python pipeline completed successfully. Log: ", log_file)
+    #     return(invisible(TRUE))
+    #   }
+    # }
+    # 
+    # # Non-blocking attempt to run python (errors are non-fatal)
+    # try(run_python_pipeline(protein_data_path = out_csv), silent = TRUE)
+  
+    # Plot results
+    
+    
+    
     # Return results
     list(
       imputed_matrix = imputed_matrix,
@@ -746,15 +786,39 @@ server <- function(input, output, session){
 
   # Plots gallery UI
   output$plots_gallery <- renderUI({
-    imgs <- output_plots(); req(length(imgs) > 0)
-    tagList(lapply(seq_along(imgs), function(i) {
+    imgs <- output_plots()
+    req(length(imgs) > 0)
+    
+    # Extract just the file names
+    img_files <- basename(imgs)
+    
+    # Define manual order
+    manual_order <- c("variance_heatmap.png", "pca_imputed.png", "missing_values_plot.png")
+    
+    # Reorder imgs according to manual_order
+    imgs_ordered <- imgs[match(manual_order, img_files)]
+    
+    tagList(lapply(seq_along(imgs_ordered), function(i) {
+      img_path <- imgs_ordered[i]
       imgId <- paste0("plot_img_", i)
+      
+      fig_title <- tools::file_path_sans_ext(basename(img_path))
+      fig_title <- gsub("_", " ", fig_title)
+      fig_title <- gsub("\\b([a-z])", "\\U\\1", fig_title, perl = TRUE)
+      
       output[[imgId]] <- renderImage({
-        list(src = imgs[i], contentType = "image/png", width = 300)
+        list(src = img_path, contentType = "image/png", width = 300)
       }, deleteFile = FALSE)
-      imageOutput(imgId, width = "300px")
+      
+      div(
+        class = "card shadow-sm mb-3 p-2",
+        h4(fig_title, class = "card-title", style = "text-align:center; font-size:14px;"),
+        imageOutput(imgId, width = "300px")
+      )
     }))
   })
+  
+  
 
   # Download processed data
   output$download_data <- downloadHandler(
