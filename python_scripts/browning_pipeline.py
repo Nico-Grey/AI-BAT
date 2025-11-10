@@ -103,8 +103,8 @@ example_weights = {
 # ==============================================================================
 
 # --- Main Execution ---
-def main(protein_data_path = './data/python_input/corrected.csv', precomputed_lasso_coefs_path='./data/python_input/coefs_from_lasso.pkl', 
-                      brown_markers_path='./data/python_input/marker.txt', sample_labels_path='./data/python_input/meta107_samples.csv', 
+def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv', precomputed_lasso_coefs_path='./data/python_input/coefs_from_lasso.pkl', 
+                      brown_markers_path='./data/python_input/marker.txt', sample_labels_path='./output/meta_data2025-11-10.csv', 
                       recompute_lasso_markers=False, output_dir='./data/python_output', compute_shaps=False):
     
     # ==========================================================================
