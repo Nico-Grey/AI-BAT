@@ -304,8 +304,11 @@ def main(protein_data_path = './output/imputed_matrix_2025-11-10.csv',
     # --- Feature Importance Analysis for All Models ---
     # Extract and visualize the most important features from each trained model
     # This helps understand which proteins are most predictive of browning
-    all_models = [lda_pca_model, lda_lasso_model, rf_model, tabpfn, lr_lasso_model, lr_marker_model]
-    model_names = ['LDA PCA', 'LDA LASSO', 'RF', 'TabPFN', 'LR LASSO', 'LR Markers']
+    # all_models = [lda_pca_model, lda_lasso_model, rf_model, tabpfn, lr_lasso_model, lr_marker_model]
+    # model_names = ['LDA PCA', 'LDA LASSO', 'RF', 'TabPFN', 'LR LASSO', 'LR Markers']
+
+    all_models = [lda_pca_model, lda_lasso_model, rf_model, lr_lasso_model, lr_marker_model]
+    model_names = ['LDA PCA', 'LDA LASSO', 'RF',  'LR LASSO', 'LR Markers']
     
     
     for model, name in zip(all_models, model_names):
