@@ -114,13 +114,18 @@
 "Williams-Whole CellBAT_73",113,12
 "Williams-Whole CellBAT_80",114,12
 "Williams-Whole CellBAT_101",115,12
-"Query-VEH1W",116,13
-"Query-VEH2W",117,13
-"Query-VEH3W",118,13
-"Query-VEH4W",119,13
-"Query-VEH5W",120,13
-"Query-VEH1B",121,13
-"Query-VEH2B",122,13
-"Query-VEH3B",123,13
-"Query-VEH4B",124,13
-"Query-VEH5B",125,13
+"Query-Log2 LFQ_2D-Culture_01",116,13
+"Query-Log2 LFQ_2D-Culture_02",117,13
+"Query-Log2 LFQ_2D-Culture_03",118,13
+"Query-Log2 LFQ_2D-Culture_04",119,13
+"Query-Log2 LFQ_2D-Culture_05",120,13
+"Query-Log2 LFQ_3D-Culture_06",121,13
+"Query-Log2 LFQ_3D-Culture_07",122,13
+"Query-Log2 LFQ_3D-Culture_08",123,13
+"Query-Log2 LFQ_3D-Culture_09",124,13
+"Query-Log2 LFQ_3D-Culture_10",125,13
+"Query-Log2 LFQ_Tissue_11",126,13
+"Query-Log2 LFQ_Tissue_12",127,13
+"Query-Log2 LFQ_Tissue_13",128,13
+"Query-Log2 LFQ_Tissue_14",129,13
+"Query-Log2 LFQ_Tissue_15",130,13
