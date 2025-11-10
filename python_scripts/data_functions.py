@@ -11,7 +11,7 @@ def load_example_data(protein_data_path = '../data/data_python/corrected.csv', p
     brown_markers_from_file = [i for i in brown_markers_from_file if i in protein_df.columns]
     
 
-    metadata = pd.read_csv(sample_labels_path, index_col=1, header=0)
+    metadata = pd.read_csv(sample_labels_path, index_col=0, header=0)
     batchd = {s:s.split('-')[0] for s in metadata.index}
     tissue = pd.Series(metadata.tissue, index=metadata.index, name="Tissue")
     diet = pd.Series(metadata.diet, index=metadata.index, name="Diet")
