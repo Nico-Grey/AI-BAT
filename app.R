@@ -1,4 +1,4 @@
-# app.R - corrected
+# ---- libraries ----
 library(shiny)
 library(bslib)
 library(DT)
@@ -14,9 +14,14 @@ library(Biobase)
 library(reticulate)
 library(glue)
 
-# -------------------------
-# App / paths configuration
-# -------------------------
+# ---- load functions ----
+source("./r_functions/project_X_to_Y_proteins.R")
+source("./r_functions/resultsTabUI.R")
+source("./r_functions/inputTabUI.R")
+source("./r_functions/examplesTabUI.R")
+source("./r_functions/run_python_pipeline.R")
+
+# ---- App / paths configuration ----
 # APP_DIR <- Sys.getenv("APP_DIR", "/app")
 APP_DIR <- Sys.getenv("APP_DIR", tempdir())
 APP_DIR = "./"
@@ -36,9 +41,10 @@ OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "/output"))
 dir.create(PLOTS_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-# -------------------------
-# UI / Theme (unchanged except small add)
-# -------------------------
+# ---- UI / Theme (unchanged except small add) ----
+
+## ----bs_theme setup ----
+
 my_theme <- bs_theme(
   bootswatch = "darkly",
   version = 4,
@@ -56,36 +62,11 @@ my_theme <- bs_theme(
   "
   )
 
-inputTabUI <- function() {
-  fluidPage(
-    fluidRow(
-      column(
-        width = 4,
-        h3("Upload Data"),
-        p("Select your input data file below (CSV or RDS format)."),
-        fileInput(
-          "data_file", "Choose File",
-          accept = c(".csv", ".rds"),
-          buttonLabel = "Browse...", placeholder = "No file selected"
-        ),
-        tags$hr(),
-        h4("Upload Status"),
-        verbatimTextOutput("debug_upload"),
-        actionButton("run_analysis", "Run Analysis", icon = icon("play"), class = "btn-primary"),
-        br(), br(),
-        strong(textOutput("analysis_status"))
-      ),
-      column(
-        width = 8,
-        h3("Data Preview"),
-        p("After uploading and running analysis, a preview of the data will appear here."),
-        DTOutput("preview_table"),
-        verbatimTextOutput("non_table_preview")
-      )
-    )
-  )
-}
+## ----inputTabUI ----
 
+
+
+## ----placeholder_image_card ----
 placeholder_image_card <- function(title, file, height = "250px") {
   div(
     class = "card shadow-sm mb-3 p-3",
@@ -98,182 +79,13 @@ placeholder_image_card <- function(title, file, height = "250px") {
   )
 }
 
-resultsTabUI <- function() {
-  tabsetPanel(
-    id = "results_tabs",
-    tabPanel(
-      title = "Processed Data",
-      fluidPage(
-        fluidRow(
-          column(
-            width = 12,
-            h3("Processed Data"),
-            downloadButton("download_data", "Download Data", class = "btn-secondary")
-          )
-        ),
-        fluidRow(
-          column(
-            width = 12,
-            h3("Plots"),
-            p("Interactive gallery of output plots."),
-            div(
-              class = "plot-gallery",
-              uiOutput("plots_gallery")
-            )
-          )
-        )
-      )
-    ),
-    tabPanel(
-      title = "Final Results",
-      fluidPage(
-        fluidRow(
-          column(
-            width = 12,
-            h3("Final Results Summary"),
-            p("This section displays the final processed outcomes, analysis metrics, or combined summaries."),
-            verbatimTextOutput("final_summary"),
-            br(),
-            h4("Final Results Table"),
-            DTOutput("final_results_table")
-          )
-        ),
-        fluidRow(
-          column(
-            width = 12,
-            h4("Final Figures"),
-            div(
-              class = "plot-gallery",
-              placeholder_image_card("Final Plot 1", "placeholder_plot1.png"),
-              placeholder_image_card("Final Plot 2", "placeholder_plot2.png")
-            )
-          )
-        )
-      )
-    )
-  )
-}
+## ----resultsTabUI ----
 
 
-examplesTabUI <- function() {
-  fluidPage(
-    h2("Examples & Tutorial"),
-    p("This section provides example usage, sample data, and instructions."),
-    h2("How to Use the App & Data Formatting Guide"),
-    p("This page explains exactly what to do, what happens to your data at each step, and how to format your files so the analysis runs smoothly. Keep it open the first time you use the app."),
-    tags$details(
-      tags$summary(h3("What happens to your data (pipeline)")),
-      tags$h4("Setup"),
-      tags$ul(
-        tags$li("Initializes the environment and prepares input files."),
-        tags$li("Captures file metadata (format, sample size, and identifiers) to ensure compatibility and traceability.")
-      ),
-      tags$h4("Loading and Trimming"),
-      tags$ul(
-        tags$li("Reads your dataset (CSV or RDS)."),
-        tags$li("Removes unnecessary spaces, formatting issues, or mislabeled entries."),
-        tags$li("Keeps only relevant samples and protein identifiers to maintain consistency across datasets.")
-      ),
-      tags$h4("Basic Normalization"),
-      tags$ul(
-        tags$li("Adjusts raw intensity values to reduce technical variability."),
-        tags$li("Places samples on a comparable scale while preserving biological signal.")
-      ),
-      tags$h4("Batch Correction"),
-      tags$ul(
-        tags$li("Identifies and corrects batch effects from multiple experimental runs."),
-        tags$li("Removes technical biases so differences reflect biological variation rather than experiment-specific effects.")
-      ),
-      tags$h4("Matrix Projection"),
-      tags$ul(
-        tags$li("Aligns protein intensities across datasets with different coverage or missing genes."),
-        tags$li("Projects all data into a common reference matrix, enabling direct comparisons in the same analytical space.")
-      ),
-      tags$h4("Imputation"),
-      tags$ul(
-        tags$li("Estimates missing values using proteomics-specific statistical methods."),
-        tags$li("Fills in gaps based on observed patterns, preserving as much biological information as possible.")
-      ),
-      tags$h4("Output"),
-      tags$ul(
-        tags$li("Produces a harmonized, analysis-ready data matrix."),
-        tags$li("Enables exploration within the app and allows downloading for downstream statistical or machine learning analysis.")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("Accepted file types")),
-      tags$ul(
-        tags$li("CSV (.csv) — preferred for portability."),
-        tags$li("RDS (.rds) — preferred when you already have clean R objects with correct column types."),
-        tags$li("Max file size: 200 MB")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("File Expectations")),
-      tags$ul(
-        tags$li(strong("Intensity Data Frame:"), " The intensity data frame will have the registered intensity of each gene analyzed. Missing data should preferably be noted as ", code("NA"), ". Row names = gene names; column names = observations."),
-        tags$li(strong("Meta Data Frame:"), " This data frame will provide sample metadata. Row names = observations.")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("CSV formatting rules")),
-      tags$ul(
-        tags$li("Header row in the first line with unique column names."),
-        tags$li("Delimiter: comma , (other delimiters supported if specified)."),
-        tags$li("Encoding: UTF-8."),
-        tags$li("Quotes: double quotes \" around fields that contain commas or line breaks."),
-        tags$li("Decimal: . (dot)."),
-        tags$li("Missing values: prefer empty cells or NA.")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("App workflow (tabs & actions)")),
-      tags$h4("1) Data Input"),
-      tags$ul(
-        tags$li("Upload: Choose CSV or RDS."),
-        tags$li("Preview: See the first N rows and summary."),
-        tags$li("Validate: The app checks types, missingness, duplicates, and date parsing.")
-      ),
-      tags$h4("2) Analysis"),
-      tags$ul(
-        tags$li("Select methods/options: Choose analyses relevant to your task."),
-        tags$li("Run Analysis: Executes the pipeline and caches results for this session.")
-      ),
-      tags$h4("3) Results"),
-      tags$ul(
-        tags$li("Overview: Key metrics and status of the run."),
-        tags$li("Tables: Clean dataset preview, summary tables, and model results."),
-        tags$li("Charts: Interactive plots; download buttons on each figure.")
-      ),
-      tags$h4("4) Download"),
-      tags$ul(
-        tags$li("Processed data: CSV/RDS."),
-        tags$li("Figures: PNG/SVG/PDF as available.")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("Reproducibility")),
-      p("Each run captures: timestamp, input hash, selected options, and package versions.")
-    ),
-    tags$details(
-      tags$summary(h3("Limits & performance")),
-      tags$ul(
-        tags$li("Large files: streaming preview only; full analysis happens after you click Run Analysis.")
-      )
-    ),
-    tags$details(
-      tags$summary(h3("Privacy & security")),
-      p("Data is processed in-memory for your session. It is not shared with other users.")
-    ),
-    h3("Example Input Data"),
-    h3("Sample Output"),
-    fluidRow(
-      column(width = 6, placeholder_image_card("Sample Plot 1", "placeholder_plot1.png")),
-      column(width = 6, placeholder_image_card("Sample Plot 2", "placeholder_plot2.png"))
-    )
-  )
-}
+## ----examplesTabUI ----
 
+
+## ----fluidPageUI ----
 ui <- fluidPage(
   theme = my_theme,
   tags$head(tags$style(HTML(".theme-toggle { margin-right: 10px; color: #ffffff; }"))),
@@ -290,9 +102,9 @@ ui <- fluidPage(
   )
 )
 
-#################
-#    SERVER PART
-#################
+
+# ----SERVER PART----
+
 
 server <- function(input, output, session){
   results      <- reactiveVal(NULL)
@@ -301,7 +113,7 @@ server <- function(input, output, session){
 
   options(shiny.maxRequestSize = 500 * 1024^2)
 
-  # ----- Upload debug in UI -----
+## ----- Upload debug in UI -----
   output$debug_upload <- renderPrint({
     if (is.null(input$data_file)) return("❌ No file uploaded yet")
     df <- input$data_file
@@ -313,6 +125,7 @@ server <- function(input, output, session){
       exists   = file.exists(df$datapath)
     )
   })
+  
   observeEvent(input$data_file, {
     if (is.null(input$data_file)) return()
     message("📥 fileInput changed: ", input$data_file$name)
@@ -371,7 +184,8 @@ server <- function(input, output, session){
 
   
   
-  # eventReactive: run the whole pipeline once button pressed
+## ---- processed_data ----
+###eventReactive: run the whole pipeline once button pressed
   processed_data <- eventReactive(input$run_analysis, {
     message("▶️ Run Analysis button pressed")
 
@@ -386,19 +200,21 @@ server <- function(input, output, session){
       stop("Uploaded data must be a named list or a single intensity matrix (CSV/RDS).")
     }
 
-    # ensure each element has intensity matrix and meta
-    # for (nm in names(data_stes)) {
-    #   if (is.matrix(data_stes[[nm]])) {
-    #     data_stes[[nm]] <- list(intensity = data_stes[[nm]], 
-    #                             meta = list(tissue = NA, diet = NA))
-    #   } else {
-    #     if (is.null(data_stes[[nm]]$intensity)) {
-    #       stop("Each dataset must contain an 'intensity' matrix. Problem with: ", nm)
-    #     }
-    #     if (is.null(data_stes[[nm]]$meta)) data_stes[[nm]]$meta <- list(tissue = NA, diet = NA)
-    #   }
-    # }
+    ###ensure each element has intensity matrix and meta
+    for (nm in names(data_stes)) {
+      if (is.matrix(data_stes[[nm]])) {
+        data_stes[[nm]] <- list(intensity = data_stes[[nm]],
+                                meta = list(tissue = NA, diet = NA))
+      } else {
+        if (is.null(data_stes[[nm]]$intensity)) {
+          stop("Each dataset must contain an 'intensity' matrix. Problem with: ", nm)
+        }
+        if (is.null(data_stes[[nm]]$meta)) data_stes[[nm]]$meta <- list(tissue = NA, diet = NA)
+      }
+    }
 
+### ---- normalization ----
+    
     # Simple normalization: log1p + column-centering if max > threshold
     max_vals <- sapply(data_stes, function(x) max(x$intensity, na.rm = TRUE))
     datasets_to_normalize <- names(max_vals)[which(max_vals > 10000)]
@@ -417,7 +233,10 @@ server <- function(input, output, session){
 
     print("Normalization Complete")
 
-    #### BATCH CORRECTION
+    
+## ---- COMBAT based batch correction ----
+    
+#### ---- integrate all dataset together ----
     all_genes <- lapply(data_stes, function(x){ rownames(x$intensity) })
     all_genes <- Reduce(union, all_genes)
     ## remove genes name as ""
@@ -443,6 +262,7 @@ server <- function(input, output, session){
     # Keep proteins without all NA columns
     common_prot <- all_matrices_mat[rowSums(is.na(all_matrices_mat)) < ncol(all_matrices_mat), , drop = FALSE]
 
+#### ---- batch data ----
     df_descroption <- data.frame(ID = colnames(all_matrices_mat), sample = 1:ncol(all_matrices_mat))
     batch_vector <- c()
     for (i in 1:length(all_matrices)){
@@ -451,7 +271,8 @@ server <- function(input, output, session){
     df_descroption$batch <- batch_vector
     write.csv(df_descroption, file = paste0(OUTPUT_DIR,"/all_normalized_description.csv"), row.names = F)
     batch_data <- read.csv(paste0(OUTPUT_DIR,"/all_normalized_description.csv"), sep = ",", header = TRUE)
-    
+
+#### ---- export meta data ----    
     ## make a new data frame with meta data info
     meta_data = data.frame(
       file_name = character(),
@@ -484,24 +305,7 @@ server <- function(input, output, session){
     
     print("Meta data extraction complete")
     
-    batch_names <- c(
-      "1" = "Haas2021", 
-      "2" = "Haas2022", 
-      "3" = "Harney", 
-      "4" = "Johanna", 
-      "5" = "Kristinaewat", 
-      "6" = "Kristinaiwat",
-      "7" = "Melina",
-      "8" = "Oeckl",
-      "9" = "Rhabi",
-      "10" = "WangBAT",
-      "11" = "WangWAT",
-      "12" = "Williams",
-      "13" = "Query"
-    )
-    
-    mat_names <- c("Haas2021", "Haas2022", "Harney", "Johanna", "Kristinaewat", "Kristinaiwat", "Melina", "Oeckl", "Rhabi", "WangBAT", "WangWAT", "Williams","Query")
-    
+#### ---- COMBAT ----
     all_tissue_types <- c()
     for (l in names(data_stes)) {
       tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
@@ -543,7 +347,7 @@ server <- function(input, output, session){
     
     print("COMBAT Correction Complete")
     
-    #########PROJECTIONS
+### ---- projection  ----
     # Prepare patterns for projecting back
     patterns_list <- setNames(
       vapply(names(data_stes),
@@ -553,65 +357,7 @@ server <- function(input, output, session){
     )
 
     # Projection helper (kept largely same but defensive)
-    project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4) {
-      X <- as.matrix(X)
-      Y <- as.matrix(Y)
-      if (is.null(dim(X))) X <- matrix(X, ncol = 1, dimnames = list(names(X), "Sample1"))
-      if (is.null(dim(Y))) Y <- matrix(Y, ncol = 1, dimnames = list(names(Y), "Sample1"))
-
-      rn <- rownames(X)
-      valid_rows <- !is.na(rn) & nzchar(rn)
-      X <- X[valid_rows, , drop = FALSE]
-      rownames(X) <- rn[valid_rows]
-
-      common_cols <- intersect(colnames(X), colnames(Y))
-      if (length(common_cols) == 0) {
-        warning("No common sample columns between X and Y → returning Y as-is")
-        return(as.data.frame(Y))
-      }
-      Xs <- X[, common_cols, drop = FALSE]
-      Ys <- Y[, common_cols, drop = FALSE]
-
-      if (ncol(Xs) != ncol(Ys)) stop("Projection aborted: mismatch in sample counts")
-
-      all_missing_proteins <- setdiff(rownames(Xs), rownames(Ys))
-      all_missing_proteins <- all_missing_proteins[nchar(all_missing_proteins) > 0]
-      all_common_proteins  <- intersect(rownames(Xs), rownames(Ys))
-      Y_proj <- Ys
-
-      pr_X <- try(princomp(Xs), silent = TRUE)
-      if (inherits(pr_X, "try-error") || is.null(pr_X$scores)) {
-        # fallback: use rows as-is
-        for (j in all_missing_proteins) {
-          avg <- matrix(rowMeans(Xs[j, , drop = FALSE], na.rm = TRUE), nrow = 1)
-          rownames(avg) <- j
-          colnames(avg) <- colnames(Ys)
-          Y_proj <- rbind(Y_proj, avg)
-        }
-        return(as.data.frame(Y_proj))
-      }
-      if (is.null(rownames(pr_X$scores))) rownames(pr_X$scores) <- rownames(Xs)
-      d_use <- min(d, ncol(pr_X$scores))
-      X_dist <- as.matrix(dist(pr_X$scores[, 1:d_use, drop = FALSE], method = "euclidean"))
-
-      for (protein_to_project in all_missing_proteins) {
-        if (!protein_to_project %in% rownames(X_dist)) next
-        neighbors <- sort(X_dist[protein_to_project, all_common_proteins, drop = FALSE])[1:min(k, length(all_common_proteins))]
-        closest_proteins <- names(neighbors)
-        if (length(closest_proteins) == 0) next
-
-        batch_vec <- Xs[closest_proteins, , drop = FALSE] - Ys[closest_proteins, , drop = FALSE]
-        projected_vec <- matrix(0, nrow = nrow(batch_vec), ncol = ncol(batch_vec))
-        for (ii in seq_len(nrow(batch_vec))) {
-          projected_vec[ii, ] <- Xs[protein_to_project, ] - batch_vec[ii, ]
-        }
-        average_proj <- matrix(colMeans(projected_vec, na.rm = TRUE), nrow = 1, ncol = ncol(Ys))
-        rownames(average_proj) <- protein_to_project
-        colnames(average_proj) <- colnames(Ys)
-        Y_proj <- rbind(Y_proj, average_proj)
-      }
-      return(as.data.frame(Y_proj))
-    }
+    
 
     # Project for each dataset
     for (dataset_name in names(data_stes)) {
@@ -647,7 +393,7 @@ server <- function(input, output, session){
     all_matrices_proj <- Reduce(cbind, all_matrices)
 
     missing_percentage <- rowSums(is.na(all_matrices_proj)) / ncol(all_matrices_proj) * 100
-    rows_to_impute <- missing_percentage <= 50
+    rows_to_impute <- missing_percentage <= 15
     matrix_to_impute <- as.matrix(all_matrices_proj[rows_to_impute, , drop = FALSE])
     colnames(matrix_to_impute) <- make.unique(colnames(matrix_to_impute))
 
@@ -674,53 +420,48 @@ server <- function(input, output, session){
       pr <- prcomp(t(imputed_matrix), center = TRUE, scale. = TRUE)
       pc_df <- as.data.frame(pr$x[, 1:2, drop = FALSE])
       pc_df$sample <- rownames(pc_df)
-      p <- ggplot(pc_df, aes(x = PC1, y = PC2, label = sample)) + 
+      
+      pc_df = merge(pc_df, meta_data, by.x = "sample", by.y = "file_name", all.x = TRUE)
+      pc_df$batch = strsplit(pc_df$sample, "-") %>% sapply(function(x) x[1])
+      
+      p1 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = batch)) + 
         geom_point() + 
-        geom_text(hjust = 1.2, size = 3) + 
+        # geom_text(hjust = 1.2, size = 3) + 
         ggtitle("Sample PCA (imputed matrix)")
       
-      out_plot <- file.path(plot_dir, "pca_imputed.png")
-      ggsave(filename = out_plot, plot = p, width = 8, height = 6, dpi = 150)
-      TRUE
+      p2 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = tissue)) + 
+        geom_point() + 
+        # geom_text(hjust = 1.2, size = 3) + 
+        ggtitle("Sample PCA (imputed matrix)")
+      
+      p3 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = diet)) + 
+        geom_point() + 
+        # geom_text(hjust = 1.2, size = 3) + 
+        ggtitle("Sample PCA (imputed matrix)")
+      
+      # out_plot <- file.path(plot_dir, "pca_tissue_imputed.png")
+      ggsave(filename = file.path(plot_dir, "pca_tissue_imputed.png"), plot = p1, width = 8, height = 6, dpi = 150)
+      ggsave(filename = file.path(plot_dir, "pca_diet_imputed.png"), plot = p2, width = 8, height = 6, dpi = 150)
+      ggsave(filename = file.path(plot_dir, "pca_batch_imputed.png"), plot = p3, width = 8, height = 6, dpi = 150)
+ 
     }, silent = TRUE)
     if (!inherits(pca_ok, "try-error")) message("Saved PCA plot")
 
-    # Run python pipeline if available (non-fatal)
-    # run_python_pipeline <- function(python_script = "./python_scripts/browning_pipeline.py",
-    #                                 protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
-    #                                 sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
-    #                                 output_dir = OUTPUT_DIR,
-    #                                 log_file = file.path(output_dir, "browning_pipeline.log")) {
-    #   py3 <- Sys.which("python3")
-    #   if (!nzchar(py3)) {
-    #     message("python3 not found on PATH — skipping Python pipeline.")
-    #     return(invisible(NULL))
-    #   }
-    #   python_script_full <- file.path(getwd(), "python_scripts", "browning_pipeline.py")
-    #   if (!file.exists(python_script_full)) {
-    #     message("Python script not found at ", python_script_full, " — skipping Python pipeline.")
-    #     return(invisible(NULL))
-    #   }
-    #   args <- c(python_script_full, "--protein_data_path", protein_data_path)
-    #   if (!is.null(sample_labels_path)) args <- c(args, "--sample_labels_path", sample_labels_path)
-    #   exit_code <- system2(command = py3, args = args, stdout = log_file, stderr = log_file)
-    #   if (exit_code != 0) {
-    #     message("Python pipeline returned non-zero exit code: ", exit_code, ". See log: ", log_file)
-    #     return(invisible(NULL))
-    #   } else {
-    #     message("Python pipeline completed successfully. Log: ", log_file)
-    #     return(invisible(TRUE))
-    #   }
-    # }
-    # 
+    #Run python pipeline if available (non-fatal)
+    
     # # Non-blocking attempt to run python (errors are non-fatal)
-    # try(run_python_pipeline(protein_data_path = out_csv), silent = TRUE)
+    # try(run_python_pipeline(protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
+    #                         sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
+    #                         output_dir = OUTPUT_DIR,
+    #                         log_file = file.path(output_dir, "browning_pipeline.log")), silent = TRUE)
   
-    # Plot results
+    
+## ---- plot results ----
     
     
     
-    # Return results
+    
+## ----Return results----
     list(
       imputed_matrix = imputed_matrix,
       plot_dir = plot_dir,
@@ -752,7 +493,7 @@ server <- function(input, output, session){
     }
   }, ignoreInit = TRUE)
 
-  # Preview table (shows the imputed_matrix head)
+## ----Preview table (shows the imputed_matrix head)----
   output$preview_table <- renderDT({
     pd <- results()
     req(!is.null(pd))
@@ -772,7 +513,7 @@ server <- function(input, output, session){
     }
   })
 
-  # Results table
+## ----Results table----
   output$results_table <- renderDT({
     dat <- results(); req(!is.null(dat))
     if (is.data.frame(dat)) {
@@ -784,43 +525,54 @@ server <- function(input, output, session){
     }
   })
 
-  # Plots gallery UI
-  output$plots_gallery <- renderUI({
-    imgs <- output_plots()
-    req(length(imgs) > 0)
+## ----Plots gallery UI----
+  observeEvent(processed_data(), {
     
-    # Extract just the file names
-    img_files <- basename(imgs)
+    pd <- processed_data()
+    req(pd)
+    plot_dir <- pd$plot_dir
+    req(dir.exists(plot_dir))
     
-    # Define manual order
-    manual_order <- c("variance_heatmap.png", "pca_imputed.png", "missing_values_plot.png")
+    # Manually order your 3 plots
+    img_files <- c(
+      "pca_batch_imputed.png",
+      "pca_tissue_imputed.png",
+      "pca_diet_imputed.png"
+    )
     
-    # Reorder imgs according to manual_order
-    imgs_ordered <- imgs[match(manual_order, img_files)]
+    # Only keep files that exist
+    imgs_ordered <- img_files[img_files %in% list.files(plot_dir)]
+    imgs_ordered <- paste0(plot_dir, "/", imgs_ordered)
     
-    tagList(lapply(seq_along(imgs_ordered), function(i) {
-      img_path <- imgs_ordered[i]
-      imgId <- paste0("plot_img_", i)
-      
-      fig_title <- tools::file_path_sans_ext(basename(img_path))
-      fig_title <- gsub("_", " ", fig_title)
-      fig_title <- gsub("\\b([a-z])", "\\U\\1", fig_title, perl = TRUE)
-      
-      output[[imgId]] <- renderImage({
-        list(src = img_path, contentType = "image/png", width = 300)
+    # Debug
+    message("DEBUG: imgs_ordered = ", paste(imgs_ordered, collapse = ", "))
+    
+    # Assign each plot
+    if(length(imgs_ordered) >= 1) {
+      output$plot1 <- renderImage({
+        list(src = imgs_ordered[1], contentType = "image/png", width = 300, height = 250)
       }, deleteFile = FALSE)
-      
-      div(
-        class = "card shadow-sm mb-3 p-2",
-        h4(fig_title, class = "card-title", style = "text-align:center; font-size:14px;"),
-        imageOutput(imgId, width = "300px")
-      )
-    }))
+    }
+    
+    if(length(imgs_ordered) >= 2) {
+      output$plot2 <- renderImage({
+        list(src = imgs_ordered[2], contentType = "image/png", width = 300, height = 250)
+      }, deleteFile = FALSE)
+    }
+    
+    if(length(imgs_ordered) >= 3) {
+      output$plot3 <- renderImage({
+        list(src = imgs_ordered[3], contentType = "image/png", width = 300, height = 250)
+      }, deleteFile = FALSE)
+    }
+    
   })
   
   
+  
+  
 
-  # Download processed data
+## ----Download processed data----
   output$download_data <- downloadHandler(
     filename = function() {
       od <- out_date_val()

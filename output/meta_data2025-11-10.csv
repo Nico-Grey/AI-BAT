@@ -106,26 +106,4 @@
 "WangWAT-WangWAT-Intensity of sWAT_HFD3","WAT-High Fat Diet","WAT","HFD"
 "WangWAT-WangWAT-Intensity of sWAT_HFD4","WAT-High Fat Diet","WAT","HFD"
 "WangWAT-WangWAT-Intensity of sWAT_HFD5","WAT-High Fat Diet","WAT","HFD"
-"Williams-Williams-Whole CellBAT_C57","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_DBA","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_45","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_66","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_68","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_73","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_80","BAT-Standard Diet","BAT","CD"
-"Williams-Williams-Whole CellBAT_101","BAT-Standard Diet","BAT","CD"
-"Query-Query-Log2 LFQ_2D-Culture_01","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_2D-Culture_02","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_2D-Culture_03","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_2D-Culture_04","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_2D-Culture_05","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_3D-Culture_06","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_3D-Culture_07","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_3D-Culture_08","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_3D-Culture_09","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_3D-Culture_10","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_Tissue_11","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_Tissue_12","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_Tissue_13","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_Tissue_14","NA-NA",NA,NA
-"Query-Query-Log2 LFQ_Tissue_15","NA-NA",NA,NA
+"Query-Query-VEH1W","NA-NA",NA,NA
