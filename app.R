@@ -157,7 +157,7 @@ server <- function(input, output, session){
     new_dataset <- list(intensity = mat, meta = list(sample = colnames(mat), tissue = NA, diet = NA))
     
     # Load existing training list or create one
-    training_path <- "./data/training115.rds"
+    training_path <- "./data/training.rds"
     if (file.exists(training_path)) {
       message("📂 Loading existing training list from: ", training_path)
       training_list <- readRDS(training_path)
@@ -337,9 +337,9 @@ server <- function(input, output, session){
       batch_vector <- c(batch_vector, rep(i, ncol(all_matrices[[i]])))
     }
     df_descroption$batch <- batch_vector
-    write.csv(df_descroption, file = paste0(OUTPUT_DIR,"/all_normalized_description.csv"), row.names = F)
-    batch_data <- read.csv(paste0(OUTPUT_DIR,"/all_normalized_description.csv"), sep = ",", header = TRUE)
-
+    # write.csv(df_descroption, file = paste0(OUTPUT_DIR,"/all_normalized_description.csv"), row.names = F)
+    # batch_data <- read.csv(paste0(OUTPUT_DIR,"/all_normalized_description.csv"), sep = ",", header = TRUE)
+    batch_data <- df_descroption
 
     
 #### ---- COMBAT ----
@@ -454,18 +454,18 @@ server <- function(input, output, session){
 
     # Make a simple PCA plot and save it (robust)
     pca_projection <- try({
-      
+
       pca_plot(input_data=all_matrices_proj ,
                meta_data=meta_data,
                file_name="PCA_after_projection",
                plot_dir = plot_dir)
-      
-      
-      
+
+
+
     }, silent = TRUE)
     if (!inherits(pca_combat, "try-error")) message("Saved PROJECTION PCA")
-    
-    
+
+
     missing_percentage <- rowSums(is.na(all_matrices_proj)) / ncol(all_matrices_proj) * 100
     rows_to_impute <- missing_percentage <= 22
     matrix_to_impute <- as.matrix(all_matrices_proj[rows_to_impute, , drop = FALSE])
@@ -483,7 +483,7 @@ server <- function(input, output, session){
     # out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".rds"))
     # saveRDS(imputed_matrix, file = out_rds)
     # message("Saved imputed matrix to: ", out_rds)
-    
+
 
     out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".csv"))
     write.csv(imputed_matrix, file = paste0(OUTPUT_DIR,"/imputed_matrix_", out_date, ".csv"), row.names = TRUE)
@@ -494,30 +494,30 @@ server <- function(input, output, session){
       pr <- prcomp(t(imputed_matrix), center = TRUE, scale. = TRUE)
       pc_df <- as.data.frame(pr$x[, 1:2, drop = FALSE])
       pc_df$sample <- rownames(pc_df)
-      
+
       pc_df = merge(pc_df, meta_data, by.x = "sample", by.y = "file_name", all.x = TRUE)
       pc_df$batch = strsplit(pc_df$sample, "-") %>% sapply(function(x) x[1])
-      
-      p1 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = batch)) + 
-        geom_point() + 
-        # geom_text(hjust = 1.2, size = 3) + 
+      write.csv(pc_df , file = paste0(OUTPUT_DIR,"/PCA_of_imputed_matrix_", out_date, ".csv"), row.names = TRUE)
+      p1 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = batch)) +
+        geom_point() +
+        # geom_text(hjust = 1.2, size = 3) +
         ggtitle("PCA_after_imputation (color by batch)")
-      
-      p2 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = tissue)) + 
-        geom_point() + 
-        # geom_text(hjust = 1.2, size = 3) + 
+
+      p2 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = tissue)) +
+        geom_point() +
+        # geom_text(hjust = 1.2, size = 3) +
         ggtitle("PCA_after_imputation (color by tissue)")
-      
-      p3 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = diet)) + 
-        geom_point() + 
-        # geom_text(hjust = 1.2, size = 3) + 
+
+      p3 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = diet)) +
+        geom_point() +
+        # geom_text(hjust = 1.2, size = 3) +
         ggtitle("PCA_after_imputation (color by diet)")
-      
+
       # out_plot <- file.path(plot_dir, "pca_tissue_imputed.png")
       ggsave(filename = file.path(plot_dir, "pca_batch_imputed.png"), plot = p1, width = 8, height = 6, dpi = 150)
       ggsave(filename = file.path(plot_dir, "pca_tissue_imputed.png"), plot = p2, width = 8, height = 6, dpi = 150)
       ggsave(filename = file.path(plot_dir, "pca_diet_imputed.png"), plot = p3, width = 8, height = 6, dpi = 150)
- 
+
     }, silent = TRUE)
     if (!inherits(pca_ok, "try-error")) message("Saved PCA plot")
 
@@ -530,14 +530,19 @@ server <- function(input, output, session){
     #                         log_file = file.path(output_dir, "browning_pipeline.log")), silent = TRUE)
   
     
-## ---- plot results ----
+## ---- plot machine-learning results ----
+    ai_prediction = read.csv(paste0(OUTPUT_DIR,"/python_output/all_sample_scores.csv"))
+    query_samples = ai_prediction %>% subset(Batch=="Query")
     
-    
+    for(sample in query_samples$X){
+      plot_browning_score(sample,ai_prediction,plot_dir)
+    }
     
     
 ## ----Return results----
     list(
-      imputed_matrix = imputed_matrix,
+      # imputed_matrix = imputed_matrix,
+      ai_prediction = NULL,  # placeholder for future
       plot_dir = plot_dir,
       out_date = out_date
     )
@@ -600,6 +605,9 @@ server <- function(input, output, session){
   })
 
 ## ----Plots gallery UI----
+  
+### ---- processed data ----
+  
   observeEvent(processed_data(), {
     
     pd <- processed_data()
@@ -663,8 +671,67 @@ server <- function(input, output, session){
     
   })
   
+### ---- final results ----
   
-  
+  observeEvent(processed_data(), {
+    pd <- processed_data()
+    req(pd)
+    plot_dir <- pd$plot_dir
+    req(dir.exists(plot_dir))
+    
+    # ✅ Look for your Browning score result figures
+    img_files <- list.files(plot_dir, pattern = "^Browning_score.*\\.png$", full.names = TRUE)
+    req(length(img_files) > 0)
+    
+    # Debug print
+    message("DEBUG (final results): Found ", length(img_files), " final result figures.")
+    
+    # ---- DYNAMIC UI CREATION ----
+    output$final_figures_gallery <- renderUI({
+      req(img_files)
+      n_cols <- 4  # 4 figures per row
+      n_imgs <- length(img_files)
+      
+      # Split figure indices into groups of 4
+      img_groups <- split(seq_len(n_imgs), ceiling(seq_len(n_imgs) / n_cols))
+      
+      # Build rows dynamically
+      tagList(
+        lapply(img_groups, function(group) {
+          fluidRow(
+            lapply(group, function(i) {
+              column(
+                width = 12 / n_cols,  # 4 columns per row → width = 3
+                div(
+                  class = "card shadow-sm mb-3 p-2",
+                  h4(
+                    basename(img_files[i]),
+                    style = "text-align:center; font-size:13px; font-weight:normal;"
+                  ),
+                  imageOutput(paste0("final_plot_", i), width = "100%", height = "250px")
+                )
+              )
+            })
+          )
+        })
+      )
+    })
+    
+    # ---- RENDER EACH IMAGE ----
+    for (i in seq_along(img_files)) {
+      local({
+        my_i <- i
+        output[[paste0("final_plot_", my_i)]] <- renderImage({
+          list(
+            src = img_files[my_i],
+            contentType = "image/png",
+            width = "100%",
+            height = "auto"
+          )
+        }, deleteFile = FALSE)
+      })
+    }
+  })
   
 
 ## ----Download processed data----

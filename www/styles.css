@@ -4,6 +4,16 @@ body {
   color: #0A1D2E; /* Dark blue */
 }
 
+tags$style(HTML("
+  .plot-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow-y: auto;
+    max-height: 800px;
+  }
+"))
+
 /* Dark Mode */
 .dark-mode {
   background-color: #0A1D2E !important; /* Dark blue */

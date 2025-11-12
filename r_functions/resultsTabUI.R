@@ -1,3 +1,4 @@
+# ---- RESULTS TAB UI ----
 resultsTabUI <- function() {
   tabsetPanel(
     id = "results_tabs",
@@ -89,15 +90,12 @@ resultsTabUI <- function() {
             DTOutput("final_results_table")
           )
         ),
+        br(),
         fluidRow(
           column(
             width = 12,
-            h4("Final Figures"),
-            div(
-              class = "plot-gallery"
-              # placeholder_image_card("Final Plot 1", "placeholder_plot1.png"),
-              # placeholder_image_card("Final Plot 2", "placeholder_plot2.png")
-            )
+            h4("Browning score prediction"),
+            uiOutput("final_figures_gallery")   # 👈 dynamic plot gallery
           )
         )
       )

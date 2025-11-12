@@ -1,3 +1,4 @@
+# ---- PCA plot ----
 pca_plot <- function(input_data, meta_data, file_name, plot_dir) {
   # ensure plot_dir exists
   if (is.null(plot_dir) || !nzchar(plot_dir)) {
@@ -65,3 +66,44 @@ pca_plot <- function(input_data, meta_data, file_name, plot_dir) {
     return(NULL)
   }
 }
+
+# ---- PCA browning score ----
+plot_browning_score <- function(sample, ai_results, plot_dir) {
+  df <- ai_results
+  df$pca_browning_score_PC1_scaled <- scales::rescale(df$pca_browning_score_PC1, to = c(0, 100))
+  
+  # Output path
+  out_path <- file.path(plot_dir, paste0("Browning_score_", sample, ".png"))
+  
+  # Open PNG device
+  png(filename = out_path, width = 1200, height = 600, res = 150)
+  
+  plot(1, ylim=c(1,4), xlim=c(-30,100), type="n", axes=F, xlab="", ylab="")
+  
+  cols <- colorRampPalette(c("lightblue", "cyan", "orange"))(200)
+  for(i in 1:200){
+    rect(xleft = i * 0.5,xright = i * 0.5 + 0.5,ybottom = 1.5,ytop = 2,col=cols[i],border = NA)
+  }
+  
+  text(x=5,y=1,label = "1 (White)",cex = 1,col="lightblue")
+  text(x=95,y=1,label = "100 (Brown)",cex = 1,col="orange")
+  text(x=-15,y=2.3,label = "Browning score:")
+  points(x=df$pca_browning_score_PC1_scaled,
+         y=rep(2.3,nrow(df)),
+         pch = 16,
+         col = "grey")
+  
+  sel <- df[df$X %in% sample, ]
+  if (nrow(sel) > 0) {
+    arrows(sel$pca_browning_score_PC1_scaled, 2.3,
+           sel$pca_browning_score_PC1_scaled, 2.7,
+           length = 0.1, lwd = 1.5, col = "black")
+    text(sel$pca_browning_score_PC1_scaled, 3.0,
+         labels = paste0(sel$X, "\n", round(sel$pca_browning_score_PC1_scaled, 2)),
+         cex = 0.8, font = 2)
+  }
+  
+  text(10, 3.5, "The browning score for your sample is:", cex = 1.2)
+  dev.off()
+}
+
