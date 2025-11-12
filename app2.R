@@ -11,6 +11,7 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library(Biobase)
+library(reticulate)
 
 # -------------------------
 # App / paths configuration
@@ -380,7 +381,6 @@ ui <- fluidPage(
 
 server <- function(input, output, session){
   
-  
   # reactive holders
   results      <- reactiveVal(NULL)
   output_plots <- reactiveVal(character(0))
@@ -436,7 +436,7 @@ server <- function(input, output, session){
       need(is.list(data_stes), "Uploaded .rds must be a named list of datasets."),
       need(length(data_stes) > 0, "The list of datasets is empty.")
     )
-    
+  
     
     # Check normalization
     max_vals <- c()
@@ -633,7 +633,6 @@ server <- function(input, output, session){
       return(as.data.frame(Y_proj))
     }
     
-    
     # Iterate over the names of data_stes
     for (dataset_name in names(data_stes)) {
       
@@ -648,7 +647,6 @@ server <- function(input, output, session){
       
       # Project the data using your custom function
       data_stes[[dataset_name]][["projection"]] <- as.data.frame(project_X_to_Y_proteins(X_count, Y_count))
-      
     }
     
     ##Projection Matrix and Imputation
@@ -671,6 +669,14 @@ server <- function(input, output, session){
     }
     
     all_matrices_proj <- Reduce(cbind, all_matrices)
+    
+    for (l in names(data_stes)) {
+      data_stes[[l]][["meta"]]$batch_data <- paste(
+        data_stes[[l]][["meta"]][["tissue"]],
+        data_stes[[l]][["meta"]][["diet"]],
+        sep = "_"
+      )
+    }
     
     print("Projection Complete")
     
@@ -707,132 +713,170 @@ server <- function(input, output, session){
     
     # Now safe to create MSnSet
     msnset_object <- MSnSet(exprs = matrix_to_impute)
-    
     imputed_result <- imputeLCMD::impute.QRILC(exprs(msnset_object))
-    
     imputed_matrix <- imputed_result[[1]]
-    
     
     # Verify
     sum(is.na(imputed_matrix))   # Should be 0 if imputation was successful
-    
     print("Imputed Matrix Complete")
-    
+    out_date = Sys.Date()
 
     # Save final outputs (RDS)
-    out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", Sys.Date(), ".rds"))
+    out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".rds"))
     saveRDS(imputed_matrix, file = out_rds)
-    message("Saved imputed matrix to: ", out_rds
-
-    # Save final outputs (CSV)
-out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", Sys.Date(), ".csv"))
-write.csv(imputed_matrix, file = out_csv, row.names = FALSE)
-message("Saved imputed matrix to: ", out_csv)
+    message("Saved imputed matrix to: ", out_rds)
+    
+    #Save final output (CSV)
+    out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix", ".csv"))
+    write.csv(imputed_matrix, file = out_csv)
+    message("Save imputed CSV file")
+    
+    #Save Meta Data Sheet
+    meta_csv <- file.path(OUTPUT_DIR, paste0("Meta_Data", ".csv"))
     
     # Save last plot PNG as well
     out_plot <- file.path(plot_dir, "last_plot.png")
     ggsave(filename = out_plot, plot = last_plot(), width = 10, height = 7, dpi = 100)
     message("Saved last_plot to: ", out_plot)
-    
-    # Return structured result for the app (matrix + plot_dir + small gallery)
-    list(
-      imputed_matrix = imputed_matrix
-      #,plot_dir = plot_dir,
-     # p_before = p_before,
-    #  p_after = p_after,
-    #  p_imputed = imputed_pca
-    )
-  }) # end processed_data eventReactive
-  
-  # This observer triggers when button is pressed (reads the cached eventReactive result)
-  observeEvent(input$run_analysis, {
-    message("⚡ collect processed_data() result and update UI")
-    pd <- NULL
-    try({
-      pd <- processed_data()
-    }, silent = FALSE)
-    
-    if (is.null(pd)) {
-      output$analysis_status <- renderText("❌ processed_data() returned NULL — check console.")
-      message("processed_data returned NULL")
-      return()
-    }
-    # store results
-    results(pd)
-    output$analysis_status <- renderText("✅ Analysis finished.")
-    
-    # collect PNGs from plot_dir (if any) and publish to UI
-    if (!is.null(pd$plot_dir) && dir.exists(pd$plot_dir)) {
-      pngs <- list.files(pd$plot_dir, pattern = "\\.png$", full.names = TRUE)
-      output_plots(pngs)
-      message("🖼️ Found ", length(pngs), " plot(s) in ", pd$plot_dir)
-    } else {
-      output_plots(character(0))
-    }
-  }, ignoreInit = TRUE)
-  
-  # Preview table (shows the imputed_matrix head)
-  output$preview_table <- renderDT({
-    pd <- results()
-    req(!is.null(pd))
-    if (!is.null(pd$imputed_matrix)) {
-      datatable(head(as.data.frame(pd$imputed_matrix), 5), options = list(dom = 't', paging = FALSE))
-    } else {
-      datatable(data.frame(Note = "No matrix in results"), options = list(dom = 't'))
-    }
   })
-  
-  output$non_table_preview <- renderPrint({
-    obj <- results()
-    if (is.null(obj)) {
-      "No processed object yet."
-    } else {
-      str(obj, max.level = 1)
-    }
-  })
-  
-  # Results table
-  output$results_table <- renderDT({
-    dat <- results(); req(!is.null(dat))
-    if (is.data.frame(dat)) {
-      datatable(dat, options = list(pageLength = 10, autoWidth = TRUE))
-    } else if (is.list(dat) && !is.null(dat$imputed_matrix)) {
-      datatable(as.data.frame(dat$imputed_matrix), options = list(pageLength = 10, autoWidth = TRUE))
-    } else {
-      datatable(data.frame(Note = "No renderable data frame in results"), options = list(dom = 't'))
-    }
-  })
-  
-  # Plots gallery
-  output$plots_gallery <- renderUI({
-    imgs <- output_plots(); req(length(imgs) > 0)
-    tagList(lapply(seq_along(imgs), function(i) {
-      imgId <- paste0("plot_img_", i)
-      output[[imgId]] <- renderImage({
-        list(src = imgs[i], contentType = "image/png", width = 300)
-      }, deleteFile = FALSE)
-      imageOutput(imgId, width = "300px")
-    }))
-  })
-  
-  # Download processed data
-  output$download_data <- downloadHandler(
-    filename = function() {
-      paste0("processed_data_", Sys.Date(), ".csv")
-    },
-    content = function(file) {
-      dat <- results(); req(!is.null(dat))
-      if (is.data.frame(dat)) {
-        write.csv(dat, file, row.names = FALSE)
-      } else if (is.list(dat) && !is.null(dat$imputed_matrix)) {
-        write.csv(as.data.frame(dat$imputed_matrix), file, row.names = FALSE)
-      } else {
-        writeLines("Output is not a data frame.", file)
+}
+    #------------------##Python Call
+   # #system("python ../python_scripts/browning_pipeline.py --protein_data_path ../data/data_python/corrected.csv --sample_labels_path ../data/data_python/meta107_samples.csv")
+    # --- Run Python pipeline safely ------------------------------------------
+    run_python_pipeline <- function(python_script = "python_scripts/browning_pipeline.py",
+                                    protein_data_path = out_csv,
+                                    sample_labels_path = meta_csv,
+                                    output_dir = OUTPUT_DIR,
+                                    log_file = file.path(output_dir, "browning_pipeline.log")) {
+      # -------------------------
+      # Minimal deterministic system2() runner
+      # -------------------------
+      py3 <- Sys.which("python3")
+      
+      #fixed path for the python script (guaranteed inside Docker)
+      python_script_full <- normalizePath(file.path(getwd(), "python_scripts", "browning_pipeline.py"),
+                                          winslash = "/", mustWork = TRUE)
+
+      #args and run
+      args <- c(
+        python_script_full,
+        "--protein_data_path", shQuote(protein_data_path),
+        "--sample_labels_path", shQuote(sample_labels_path)
+      )
+      
+      # run python and capture stdout/stderr to the log file (append mode)
+      exit_code <- system2(command = py3, args = args, stdout = log_file, stderr = log_file)
+      if (exit_code != 0) {
+        stop("Python pipeline failed (exit code ", exit_code, "). See log: ", log_file)
       }
+        else {
+      message("Python pipeline completed successfully. Log: ", log_file)
+      }
+      
+      # --- Call Python pipeline ------------------------------------------------
+      run_python_pipeline(
+        python_script = "python_scripts/browning_pipeline.py",
+        protein_data_path = out_csv,
+        output_dir = OUTPUT_DIR,
+        log_file = file.path(OUTPUT_DIR, "browning_pipeline.log")
+      )
+      
+      # Return structured result for the app (matrix + plot_dir + small gallery)
+      list(
+        imputed_matrix = imputed_matrix 
+        #,plot_dir = plot_dir,
+        # p_before = p_before,
+        #  p_after = p_after,
+        #  p_imputed = imputed_pca
+      )
+      
+      # This observer triggers when button is pressed (reads the cached eventReactive result)
+      observeEvent(input$run_analysis, {
+        message("⚡ collect processed_data() result and update UI")
+        pd <- NULL
+        try({
+          pd <- processed_data()
+        }, silent = FALSE)
+        
+        if (is.null(pd)) {
+          output$analysis_status <- renderText("❌ processed_data() returned NULL — check console.")
+          message("processed_data returned NULL")
+          return()
+        }
+        # store results
+        results(pd)
+        output$analysis_status <- renderText("✅ Analysis finished.")
+        
+        # collect PNGs from plot_dir (if any) and publish to UI
+        if (!is.null(pd$plot_dir) && dir.exists(pd$plot_dir)) {
+          pngs <- list.files(pd$plot_dir, pattern = "\\.png$", full.names = TRUE)
+          output_plots(pngs)
+          message("🖼️ Found ", length(pngs), " plot(s) in ", pd$plot_dir)
+        } else {
+          output_plots(character(0))
+        }
+      }, ignoreInit = TRUE)
+      
+      # Preview table (shows the imputed_matrix head)
+      output$preview_table <- renderDT({
+        pd <- results()
+        req(!is.null(pd))
+        if (!is.null(pd$imputed_matrix)) {
+          datatable(head(as.data.frame(pd$imputed_matrix), 5), options = list(dom = 't', paging = FALSE))
+        } else {
+          datatable(data.frame(Note = "No matrix in results"), options = list(dom = 't'))
+        }
+      })
+      
+      output$non_table_preview <- renderPrint({
+        obj <- results()
+        if (is.null(obj)) {
+          "No processed object yet."
+        } else {
+          str(obj, max.level = 1)
+        }
+      })
+      
+      # Results table
+      output$results_table <- renderDT({
+        dat <- results(); req(!is.null(dat))
+        if (is.data.frame(dat)) {
+          datatable(dat, options = list(pageLength = 10, autoWidth = TRUE))
+        } else if (is.list(dat) && !is.null(dat$imputed_matrix)) {
+          datatable(as.data.frame(dat$imputed_matrix), options = list(pageLength = 10, autoWidth = TRUE))
+        } else {
+          datatable(data.frame(Note = "No renderable data frame in results"), options = list(dom = 't'))
+        }
+      })
+      
+      # Plots gallery
+      output$plots_gallery <- renderUI({
+        imgs <- output_plots(); req(length(imgs) > 0)
+        tagList(lapply(seq_along(imgs), function(i) {
+          imgId <- paste0("plot_img_", i)
+          output[[imgId]] <- renderImage({
+            list(src = imgs[i], contentType = "image/png", width = 300)
+          }, deleteFile = FALSE)
+          imageOutput(imgId, width = "300px")
+        }))
+      })
+      
+      # Download processed data
+      output$download_data <- downloadHandler(
+        filename = function() {
+          paste0("processed_data_", out_date, ".csv")
+        },
+        content = function(file) {
+          dat <- results(); req(!is.null(dat))
+          if (is.data.frame(dat)) {
+            write.csv(dat, file, row.names = FALSE)
+          } else if (is.list(dat) && !is.null(dat$imputed_matrix)) {
+            write.csv(as.data.frame(dat$imputed_matrix), file, row.names = FALSE)
+          } else {
+            writeLines("Output is not a data frame.", file)
+          }
+        }
+      )
     }
-  )
-} # end server
 
 shinyApp(ui = ui, server = server)
-
-
