@@ -20,6 +20,7 @@ source("./r_functions/resultsTabUI.R")
 source("./r_functions/inputTabUI.R")
 source("./r_functions/examplesTabUI.R")
 source("./r_functions/run_python_pipeline.R")
+source("./r_functions/plot_figures.R")
 
 # ---- App / paths configuration ----
 # APP_DIR <- Sys.getenv("APP_DIR", "/app")
@@ -156,7 +157,7 @@ server <- function(input, output, session){
     new_dataset <- list(intensity = mat, meta = list(sample = colnames(mat), tissue = NA, diet = NA))
     
     # Load existing training list or create one
-    training_path <- "./data/training.rds"
+    training_path <- "./data/training115.rds"
     if (file.exists(training_path)) {
       message("📂 Loading existing training list from: ", training_path)
       training_list <- readRDS(training_path)
@@ -213,15 +214,51 @@ server <- function(input, output, session){
       }
     }
 
+#### ---- export meta data ----    
+    ## make a new data frame with meta data info
+    meta_data = data.frame(
+      file_name = character(),
+      label = character(),
+      tissue = character(),
+      diet = character(),
+      stringsAsFactors = FALSE
+    )
+    for (l in names(data_stes)) {
+      
+      tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
+      diet_type <- data_stes[[l]][["meta"]][["diet"]]
+      cohort = strsplit(l, "_")[[1]][1]
+      meta_data <- rbind(meta_data, data.frame(
+        file_name = paste0(cohort,"-",cohort,"-",data_stes[[l]][["meta"]][["sample"]]),
+        label = paste0(tissue_type,"-",diet_type),
+        tissue = tissue_type,
+        diet = diet_type,
+        stringsAsFactors = FALSE
+      ))
+      
+    }
+    
+    meta_data$diet = ifelse(meta_data$diet == "High Fat Diet", "HFD", 
+                            ifelse(meta_data$diet %in% c("Standard Diet","AdLib"), "CD", meta_data$diet))
+    
+    
+    write.csv(meta_data, file = paste0(OUTPUT_DIR,"/meta_data", out_date, ".csv"), row.names = F)
+    
+    
+    print("Meta data extraction complete")
+    
 ### ---- normalization ----
     
     # Simple normalization: log1p + column-centering if max > threshold
     max_vals <- sapply(data_stes, function(x) max(x$intensity, na.rm = TRUE))
-    datasets_to_normalize <- names(max_vals)[which(max_vals > 10000)]
+    datasets_to_normalize <- names(max_vals)[which(max_vals > 0)]
 
     for(i in names(data_stes)){
       if(i %in% datasets_to_normalize){
         log_data <- log1p(as.matrix(data_stes[[i]]$intensity))
+        ## replace inf with NA
+        log_data[is.infinite(log_data)] <- NA
+        
         med_col <- apply(log_data, 2, function(x) median(x, na.rm = TRUE))
         data_stes[[i]]$normalized <- sweep(log_data, 2, med_col, FUN = "-")
         rownames(data_stes[[i]]$normalized) <- rownames(data_stes[[i]]$intensity)
@@ -230,9 +267,8 @@ server <- function(input, output, session){
         data_stes[[i]]$normalized <- as.matrix(data_stes[[i]]$intensity)
       }
     }
-
+   
     print("Normalization Complete")
-
     
 ## ---- COMBAT based batch correction ----
     
@@ -259,6 +295,38 @@ server <- function(input, output, session){
 
     # Put all together
     all_matrices_mat <- Reduce(cbind, all_matrices)
+    
+    # Make a simple dot plot and save it (robust)
+    normalization_figure <- try({
+      
+      pca_plot(input_data=all_matrices_mat,
+               meta_data=meta_data,
+               file_name="PCA_after_normalization",
+               plot_dir = plot_dir)
+      
+      ## convert to data frame for ggplot
+      all_matrices_mat_df <- as.data.frame(all_matrices_mat)
+      all_matrices_mat_df$Protein <- rownames(all_matrices_mat_df)
+      all_matrices_mat_long <- pivot_longer(all_matrices_mat_df, cols = -Protein, names_to = "Sample", values_to = "Intensity")
+      
+      ## add batch info
+      all_matrices_mat_long <- all_matrices_mat_long %>%
+        mutate(Batch = sapply(strsplit(Sample, "-"), function(x) x[1]))
+      
+      ## ggplot
+      p1 <- ggplot(all_matrices_mat_long, aes(x = Batch, y = Intensity)) +
+        geom_boxplot(alpha = 0.3, size = 0.5) +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+        labs(title = "Normalization Check: Protein Intensities Across Samples", x = "Samples", y = "Intensity")
+      
+      print(file.path(plot_dir, "normalization_boxplot.png"))
+      ggsave(filename = file.path(plot_dir, "normalization_boxplot.png"), plot = p1, width = 8, height = 6, dpi = 150)
+      
+    }, silent = FALSE)
+    if (!inherits(normalization_figure, "try-error")) message("Saved normalization figure")
+    
+    
     # Keep proteins without all NA columns
     common_prot <- all_matrices_mat[rowSums(is.na(all_matrices_mat)) < ncol(all_matrices_mat), , drop = FALSE]
 
@@ -272,38 +340,7 @@ server <- function(input, output, session){
     write.csv(df_descroption, file = paste0(OUTPUT_DIR,"/all_normalized_description.csv"), row.names = F)
     batch_data <- read.csv(paste0(OUTPUT_DIR,"/all_normalized_description.csv"), sep = ",", header = TRUE)
 
-#### ---- export meta data ----    
-    ## make a new data frame with meta data info
-    meta_data = data.frame(
-      file_name = character(),
-      label = character(),
-      tissue = character(),
-      diet = character(),
-      stringsAsFactors = FALSE
-    )
-    for (l in names(data_stes)) {
 
-      tissue_type <- data_stes[[l]][["meta"]][["tissue"]]
-      diet_type <- data_stes[[l]][["meta"]][["diet"]]
-      cohort = strsplit(l, "_")[[1]][1]
-      meta_data <- rbind(meta_data, data.frame(
-        file_name = paste0(cohort,"-",cohort,"-",data_stes[[l]][["meta"]][["sample"]]),
-        label = paste0(tissue_type,"-",diet_type),
-        tissue = tissue_type,
-        diet = diet_type,
-        stringsAsFactors = FALSE
-      ))
-
-    }
-    
-    meta_data$diet = ifelse(meta_data$diet == "High Fat Diet", "HFD", 
-                            ifelse(meta_data$diet %in% c("Standard Diet","AdLib"), "CD", meta_data$diet))
-  
-    
-    write.csv(meta_data, file = paste0(OUTPUT_DIR,"/meta_data", out_date, ".csv"), row.names = F)
-    
-    
-    print("Meta data extraction complete")
     
 #### ---- COMBAT ----
     all_tissue_types <- c()
@@ -347,7 +384,20 @@ server <- function(input, output, session){
     
     print("COMBAT Correction Complete")
     
-### ---- projection  ----
+    # Make a simple PCA plot and save it (robust)
+    pca_combat <- try({
+      pca_plot(input_data=combat_exprs,
+               meta_data=meta_data,
+               file_name="PCA_after_COMBAT",
+               plot_dir = plot_dir)
+      
+
+      
+    }, silent = TRUE)
+    if (!inherits(pca_combat, "try-error")) message("Saved COMBAT PCA")
+    
+    
+## ---- projection  ----
     # Prepare patterns for projecting back
     patterns_list <- setNames(
       vapply(names(data_stes),
@@ -357,11 +407,16 @@ server <- function(input, output, session){
     )
 
     # Projection helper (kept largely same but defensive)
-    
 
     # Project for each dataset
     for (dataset_name in names(data_stes)) {
       X_count <- as.matrix(data_stes[[dataset_name]][["normalized"]])
+      ## add the batch information to the sample names
+      colnames(X_count) <- paste0(strsplit(dataset_name, "_")[[1]][1],"-",colnames(X_count))
+      
+      ## convert infinit to NA
+      X_count[is.infinite(X_count)] <- NA
+      
       X_count[is.na(X_count)] <- 0
       pattern <- patterns_list[[dataset_name]]
       # select columns from combat_exprs by pattern (case-insensitive)
@@ -372,11 +427,16 @@ server <- function(input, output, session){
       } else {
         Y_count <- combat_exprs[, cols, drop = FALSE]
       }
+
       data_stes[[dataset_name]][["projection"]] <- as.data.frame(project_X_to_Y_proteins(X_count, Y_count))
-    }
+      message("Projection finished for ", dataset_name)
+      }
 
     print("Projection Complete")
+    
+    
 
+## ---- imputation ----
     # Build final projection matrix across datasets
     all_genes <- lapply(data_stes, function(x) rownames(x$projection))
     all_genes <- Reduce(union, all_genes)
@@ -392,8 +452,22 @@ server <- function(input, output, session){
     })
     all_matrices_proj <- Reduce(cbind, all_matrices)
 
+    # Make a simple PCA plot and save it (robust)
+    pca_projection <- try({
+      
+      pca_plot(input_data=all_matrices_proj ,
+               meta_data=meta_data,
+               file_name="PCA_after_projection",
+               plot_dir = plot_dir)
+      
+      
+      
+    }, silent = TRUE)
+    if (!inherits(pca_combat, "try-error")) message("Saved PROJECTION PCA")
+    
+    
     missing_percentage <- rowSums(is.na(all_matrices_proj)) / ncol(all_matrices_proj) * 100
-    rows_to_impute <- missing_percentage <= 15
+    rows_to_impute <- missing_percentage <= 22
     matrix_to_impute <- as.matrix(all_matrices_proj[rows_to_impute, , drop = FALSE])
     colnames(matrix_to_impute) <- make.unique(colnames(matrix_to_impute))
 
@@ -406,9 +480,9 @@ server <- function(input, output, session){
     out_date_val(out_date)  # store for download handler
 
     # Save final outputs (RDS & CSV)
-    out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".rds"))
-    saveRDS(imputed_matrix, file = out_rds)
-    message("Saved imputed matrix to: ", out_rds)
+    # out_rds <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".rds"))
+    # saveRDS(imputed_matrix, file = out_rds)
+    # message("Saved imputed matrix to: ", out_rds)
     
 
     out_csv <- file.path(OUTPUT_DIR, paste0("imputed_matrix_", out_date, ".csv"))
@@ -427,22 +501,22 @@ server <- function(input, output, session){
       p1 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = batch)) + 
         geom_point() + 
         # geom_text(hjust = 1.2, size = 3) + 
-        ggtitle("Sample PCA (imputed matrix)")
+        ggtitle("PCA_after_imputation (color by batch)")
       
       p2 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = tissue)) + 
         geom_point() + 
         # geom_text(hjust = 1.2, size = 3) + 
-        ggtitle("Sample PCA (imputed matrix)")
+        ggtitle("PCA_after_imputation (color by tissue)")
       
       p3 <- ggplot(pc_df, aes(x = PC1, y = PC2, color = diet)) + 
         geom_point() + 
         # geom_text(hjust = 1.2, size = 3) + 
-        ggtitle("Sample PCA (imputed matrix)")
+        ggtitle("PCA_after_imputation (color by diet)")
       
       # out_plot <- file.path(plot_dir, "pca_tissue_imputed.png")
-      ggsave(filename = file.path(plot_dir, "pca_tissue_imputed.png"), plot = p1, width = 8, height = 6, dpi = 150)
-      ggsave(filename = file.path(plot_dir, "pca_diet_imputed.png"), plot = p2, width = 8, height = 6, dpi = 150)
-      ggsave(filename = file.path(plot_dir, "pca_batch_imputed.png"), plot = p3, width = 8, height = 6, dpi = 150)
+      ggsave(filename = file.path(plot_dir, "pca_batch_imputed.png"), plot = p1, width = 8, height = 6, dpi = 150)
+      ggsave(filename = file.path(plot_dir, "pca_tissue_imputed.png"), plot = p2, width = 8, height = 6, dpi = 150)
+      ggsave(filename = file.path(plot_dir, "pca_diet_imputed.png"), plot = p3, width = 8, height = 6, dpi = 150)
  
     }, silent = TRUE)
     if (!inherits(pca_ok, "try-error")) message("Saved PCA plot")
@@ -533,11 +607,14 @@ server <- function(input, output, session){
     plot_dir <- pd$plot_dir
     req(dir.exists(plot_dir))
     
-    # Manually order your 3 plots
+    # Manually order your 4 plots
     img_files <- c(
+      "normalization_boxplot.png",
+      "PCA_after_normalization.png",
+      "PCA_after_COMBAT.png",
+      "PCA_after_projection.png",
       "pca_batch_imputed.png",
-      "pca_tissue_imputed.png",
-      "pca_diet_imputed.png"
+      "pca_tissue_imputed.png"
     )
     
     # Only keep files that exist
@@ -563,6 +640,24 @@ server <- function(input, output, session){
     if(length(imgs_ordered) >= 3) {
       output$plot3 <- renderImage({
         list(src = imgs_ordered[3], contentType = "image/png", width = 300, height = 250)
+      }, deleteFile = FALSE)
+    }
+    
+    if(length(imgs_ordered) >= 4) {
+      output$plot4 <- renderImage({
+        list(src = imgs_ordered[4], contentType = "image/png", width = 300, height = 250)
+      }, deleteFile = FALSE)
+    }
+    
+    if(length(imgs_ordered) >= 5) {
+      output$plot5 <- renderImage({
+        list(src = imgs_ordered[5], contentType = "image/png", width = 300, height = 250)
+      }, deleteFile = FALSE)
+    }
+    
+    if(length(imgs_ordered) >= 6) {
+      output$plot6 <- renderImage({
+        list(src = imgs_ordered[6], contentType = "image/png", width = 300, height = 250)
       }, deleteFile = FALSE)
     }
     

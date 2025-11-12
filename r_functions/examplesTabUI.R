@@ -111,8 +111,8 @@ examplesTabUI <- function() {
     h3("Example Input Data"),
     h3("Sample Output"),
     fluidRow(
-      column(width = 6, placeholder_image_card("Sample Plot 1", "placeholder_plot1.png")),
-      column(width = 6, placeholder_image_card("Sample Plot 2", "placeholder_plot2.png"))
+      # column(width = 6, placeholder_image_card("Sample Plot 1", "placeholder_plot1.png")),
+      # column(width = 6, placeholder_image_card("Sample Plot 2", "placeholder_plot2.png"))
     )
   )
 }

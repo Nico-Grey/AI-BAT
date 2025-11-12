@@ -1,59 +1,86 @@
 project_X_to_Y_proteins <- function(X, Y, k = 2, d = 4) {
-  X <- as.matrix(X)
-  Y <- as.matrix(Y)
-  if (is.null(dim(X))) X <- matrix(X, ncol = 1, dimnames = list(names(X), "Sample1"))
-  if (is.null(dim(Y))) Y <- matrix(Y, ncol = 1, dimnames = list(names(Y), "Sample1"))
+  # X: Uncorrected matrix with proteins in rows and samples in columns
+  # Y: Corrected matrix with proteins in rows and samples in columns
+  # k: number of nearest neighbors
+  # d: number of principal components to use
   
-  rn <- rownames(X)
-  valid_rows <- !is.na(rn) & nzchar(rn)
-  X <- X[valid_rows, , drop = FALSE]
-  rownames(X) <- rn[valid_rows]
-  
-  common_cols <- intersect(colnames(X), colnames(Y))
-  if (length(common_cols) == 0) {
-    warning("No common sample columns between X and Y → returning Y as-is")
-    return(as.data.frame(Y))
+  # --- Input checks ---
+  if (is.null(rownames(X)) || is.null(rownames(Y))) {
+    stop("Both X and Y must have row names corresponding to proteins.")
   }
-  Xs <- X[, common_cols, drop = FALSE]
-  Ys <- Y[, common_cols, drop = FALSE]
   
-  if (ncol(Xs) != ncol(Ys)) stop("Projection aborted: mismatch in sample counts")
-  
-  all_missing_proteins <- setdiff(rownames(Xs), rownames(Ys))
+  all_missing_proteins <- setdiff(rownames(X), rownames(Y))
   all_missing_proteins <- all_missing_proteins[nchar(all_missing_proteins) > 0]
-  all_common_proteins  <- intersect(rownames(Xs), rownames(Ys))
-  Y_proj <- Ys
+  all_common_proteins  <- intersect(rownames(X), rownames(Y))
   
-  pr_X <- try(princomp(Xs), silent = TRUE)
-  if (inherits(pr_X, "try-error") || is.null(pr_X$scores)) {
-    # fallback: use rows as-is
-    for (j in all_missing_proteins) {
-      avg <- matrix(rowMeans(Xs[j, , drop = FALSE], na.rm = TRUE), nrow = 1)
-      rownames(avg) <- j
-      colnames(avg) <- colnames(Ys)
-      Y_proj <- rbind(Y_proj, avg)
-    }
-    return(as.data.frame(Y_proj))
+  if (length(all_common_proteins) == 0) {
+    stop("No common proteins between X and Y — cannot project.")
   }
-  if (is.null(rownames(pr_X$scores))) rownames(pr_X$scores) <- rownames(Xs)
-  d_use <- min(d, ncol(pr_X$scores))
-  X_dist <- as.matrix(dist(pr_X$scores[, 1:d_use, drop = FALSE], method = "euclidean"))
   
-  for (protein_to_project in all_missing_proteins) {
-    if (!protein_to_project %in% rownames(X_dist)) next
-    neighbors <- sort(X_dist[protein_to_project, all_common_proteins, drop = FALSE])[1:min(k, length(all_common_proteins))]
-    closest_proteins <- names(neighbors)
-    if (length(closest_proteins) == 0) next
+  Y_proj <- Y
+  
+  # --- Handle single-sample case ---
+  if (ncol(X) == 1 || ncol(Y) == 1) {
+    message("Single-sample mode detected — skipping PCA and using direct differences.")
     
-    batch_vec <- Xs[closest_proteins, , drop = FALSE] - Ys[closest_proteins, , drop = FALSE]
-    projected_vec <- matrix(0, nrow = nrow(batch_vec), ncol = ncol(batch_vec))
-    for (ii in seq_len(nrow(batch_vec))) {
-      projected_vec[ii, ] <- Xs[protein_to_project, ] - batch_vec[ii, ]
+    for (j in all_missing_proteins) {
+      if (!(j %in% rownames(X))) next
+      
+      # Find k nearest neighbors among common proteins (by absolute difference)
+      diffs <- abs(X[j, 1] - X[all_common_proteins, 1])
+      closest_proteins <- names(sort(diffs))[1:min(k, length(diffs))]
+      
+      # Batch difference (common proteins)
+      batch_vec <- X[closest_proteins, 1, drop = FALSE] - Y[closest_proteins, 1, drop = FALSE]
+      
+      # Project missing protein
+      projected_val <- X[j, 1] - mean(batch_vec, na.rm = TRUE)
+      
+      avg_proj <- matrix(projected_val, nrow = 1)
+      rownames(avg_proj) <- j
+      colnames(avg_proj) <- colnames(Y)
+      
+      Y_proj <- rbind(Y_proj, avg_proj)
     }
-    average_proj <- matrix(colMeans(projected_vec, na.rm = TRUE), nrow = 1, ncol = ncol(Ys))
-    rownames(average_proj) <- protein_to_project
-    colnames(average_proj) <- colnames(Ys)
-    Y_proj <- rbind(Y_proj, average_proj)
+    
+    return(Y_proj)
   }
-  return(as.data.frame(Y_proj))
+  
+  # --- Multi-sample case ---
+  
+  # Principal component analysis on X
+  pr_X <- princomp(X)
+  
+  # Limit d to available components
+  d <- min(d, ncol(pr_X$scores))
+  
+  # Compute Euclidean distances between proteins
+  X_dist <- as.matrix(dist(pr_X$scores[, 1:d, drop = FALSE], method = "euclidean"))
+  
+  for (j in all_missing_proteins) {
+    if (!(j %in% rownames(X_dist))) next
+    
+    # Find k closest neighbors among common proteins
+    dist_vec <- X_dist[j, all_common_proteins]
+    closest_proteins <- names(sort(dist_vec, decreasing = FALSE))[1:min(k, length(dist_vec))]
+    
+    # Calculate batch correction vector
+    batch_vec <- X[closest_proteins, , drop = FALSE] - Y[closest_proteins, , drop = FALSE]
+    
+    # Project protein into Y batch space
+    projected_vec <- matrix(0, nrow = nrow(batch_vec), ncol = ncol(batch_vec))
+    for (i in 1:nrow(batch_vec)) {
+      projected_vec[i, ] <- X[j, , drop = FALSE] - batch_vec[i, ]
+    }
+    
+    # Average projected vector
+    avg_proj <- matrix(colMeans(projected_vec, na.rm = TRUE), nrow = 1)
+    rownames(avg_proj) <- j
+    colnames(avg_proj) <- colnames(Y)
+    
+    # Append to Y_proj
+    Y_proj <- rbind(Y_proj, avg_proj)
+  }
+  
+  return(Y_proj)
 }

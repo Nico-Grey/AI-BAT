@@ -1,50 +1,80 @@
 resultsTabUI <- function() {
   tabsetPanel(
     id = "results_tabs",
+    
+    # ---- PROCESSED DATA TAB ----
     tabPanel(
       title = "Processed Data",
       fluidPage(
+        # Section header
         fluidRow(
           column(
             width = 12,
             h3("Processed Data"),
-            downloadButton("download_data", "Download Data", class = "btn-secondary")
+            downloadButton("download_data", "Download Data", class = "btn-secondary"),
+            br(), br()
           )
         ),
+        
+        # ---- FIRST ROW OF PLOTS ----
         fluidRow(
           column(
             width = 4,
-            h3("Plots"),
-            p("Interactive gallery of output plots."),
             div(
               class = "card shadow-sm mb-3 p-2",
-              h4("a) Plot 1", style = "text-align:center; font-size:14px;"),
-              imageOutput("plot1", width = "300px", height = "250px")
+              h4("Normalization per dataset", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot1", width = "100%", height = "250px")
             )
           ),
           column(
             width = 4,
-            h3("Plots"),
-            p("Interactive gallery of output plots."),
             div(
               class = "card shadow-sm mb-3 p-2",
-              h4("b) Plot 2", style = "text-align:center; font-size:14px;"),
-              imageOutput("plot2", width = "300px", height = "250px")
+              h4("PCA after normalization", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot2", width = "100%", height = "250px")
             )
           ),
           column(
             width = 4,
-            h3("Plots"),
-            p("Interactive gallery of output plots."),
             div(
               class = "card shadow-sm mb-3 p-2",
-              h4("c) Plot 3", style = "text-align:center; font-size:14px;"),
-              imageOutput("plot3", width = "300px", height = "250px")
+              h4("PCA after COMBAT", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot3", width = "100%", height = "250px")
+            )
+          )
+        ),
+        
+        # ---- SECOND ROW OF PLOTS ----
+        fluidRow(
+          column(
+            width = 4,
+            div(
+              class = "card shadow-sm mb-3 p-2",
+              h4("PCA after projection", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot4", width = "100%", height = "250px")
+            )
+          ),
+          column(
+            width = 4,
+            div(
+              class = "card shadow-sm mb-3 p-2",
+              h4("PCA after imputation", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot5", width = "100%", height = "250px")
+            )
+          ),
+          column(
+            width = 4,
+            div(
+              class = "card shadow-sm mb-3 p-2",
+              h4("PCA after imputation by tissue", style = "text-align:center; font-size:14px;"),
+              imageOutput("plot6", width = "100%", height = "250px")
             )
           )
         )
       )
     ),
+    
+    # ---- FINAL RESULTS TAB ----
     tabPanel(
       title = "Final Results",
       fluidPage(
@@ -64,7 +94,7 @@ resultsTabUI <- function() {
             width = 12,
             h4("Final Figures"),
             div(
-              class = "plot-gallery",
+              class = "plot-gallery"
               # placeholder_image_card("Final Plot 1", "placeholder_plot1.png"),
               # placeholder_image_card("Final Plot 2", "placeholder_plot2.png")
             )
