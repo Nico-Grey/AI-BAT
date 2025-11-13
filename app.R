@@ -11,7 +11,7 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library(Biobase)
-library(reticulate)
+#library(reticulate)
 library(glue)
 
 # ---- load functions ----
@@ -39,8 +39,15 @@ options(gsea_pathway_dir = gsea_pathway_dir)
 out_date <- as.character(Sys.Date())
 PLOTS_DIR  <- Sys.getenv("PLOTS_DIR", file.path(APP_DIR, "/plots"))
 OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", file.path(APP_DIR, "/output"))
+PYTHON_OUTPUT_DIR <- Sys.getenv("PYTHON_OUTPUT_DIR", file.path(APP_DIR, "/output/python_output"))
+
+## remove existing output folder
+unlink(PYTHON_OUTPUT_DIR, recursive = TRUE, force = TRUE)
+unlink(OUTPUT_DIR, recursive = TRUE, force = TRUE)
+
 dir.create(PLOTS_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
+dir.create(PYTHON_OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 # ---- UI / Theme (unchanged except small add) ----
 
@@ -524,10 +531,12 @@ server <- function(input, output, session){
     #Run python pipeline if available (non-fatal)
     
     # # Non-blocking attempt to run python (errors are non-fatal)
-    # try(run_python_pipeline(protein_data_path = paste0(OUTPUT_DIR,"imputed_matrix_", out_date, ".csv"),
-    #                         sample_labels_path = paste0(OUTPUT_DIR,"meta_data", out_date, ".csv"),
-    #                         output_dir = OUTPUT_DIR,
-    #                         log_file = file.path(output_dir, "browning_pipeline.log")), silent = TRUE)
+     try({
+      run_python_pipeline(protein_data_path = paste0(OUTPUT_DIR,"/imputed_matrix_", out_date, ".csv"),
+                          sample_labels_path = paste0(OUTPUT_DIR,"/meta_data", out_date, ".csv"),
+                          log_file = file.path(OUTPUT_DIR, "/browning_pipeline.log")
+      )
+      }, silent = FALSE)
   
     
 ## ---- plot machine-learning results ----

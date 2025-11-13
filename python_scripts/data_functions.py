@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
-def load_example_data(protein_data_path = '../data/data_python/corrected.csv', precomputed_lasso_coefs_path='../data/data_python/coefs_from_lasso.pkl', 
-                      brown_markers_path='../data/data_python/marker.txt', sample_labels_path='../data/data_python/meta107_samples.csv'):
+def load_example_data(protein_data_path = '../data/data_python/corrected.csv', 
+                      precomputed_lasso_coefs_path='../data/data_python/coefs_from_lasso.pkl', 
+                      brown_markers_path='../data/data_python/marker.txt', 
+                      sample_labels_path='../data/data_python/meta107_samples.csv'):
     
     protein_df = pd.read_csv(protein_data_path, index_col=0, header=0).T
 
