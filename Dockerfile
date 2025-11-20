@@ -59,10 +59,12 @@ RUN R -e "BiocManager::install(c('SummarizedExperiment', 'GenomicRanges', 'DESeq
 RUN R -e "BiocManager::install(c('org.Hs.eg.db', 'org.Mm.eg.db', 'clusterProfiler', 'HarmonizR', 'biomaRt', 'imputeLCMD'), ask = FALSE, update = FALSE, dependencies = TRUE)"
 
 # Copy all necessary files into the container
-COPY BATpipeline.R /app/BATpipeline.R
-COPY dataset.rds /app/dataset.rds
-COPY general_functions.R /app/general_functions.R
-COPY app.R /app/app.R
+#COPY ./www /app/www/
+#COPY ./r_functions app/r_functions/
+#COPY ./python_scripts /app/python_scripts
+#COPY ./data /app/data
+#COPY app.R /app/app.R
+COPY -exclude app_cache -exclude output -exclude plots -exclude gsea_pathways . /app
 
 # Expose Shiny's default port
 EXPOSE 3838  
