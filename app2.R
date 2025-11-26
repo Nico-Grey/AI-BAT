@@ -62,14 +62,28 @@ my_theme <- bs_theme(
     .data-table-container {
       overflow-x: auto;
     }
+    /* Small, compact upload status box */
+    .upload-status-box {
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
   "
   )
 
+# Input tab: reorganised so Data Preview is below all controls.
+# Left (main) column holds upload + imputation options. Right (side) column holds quick preview controls
+# and Run Analysis / Upload Status so everything fits without scrolling.
 inputTabUI <- function() {
   fluidPage(
     fluidRow(
       column(
-        width = 4,
+        width = 8,
         h3("Upload Data"),
         p("Select your input data file below (CSV or RDS format)."),
         fileInput(
@@ -77,19 +91,81 @@ inputTabUI <- function() {
           accept = c(".csv", ".rds"),
           buttonLabel = "Browse...", placeholder = "No file selected"
         ),
-        # --- Debug block: shows exactly what Shiny received ---
+        
         tags$hr(),
-        h4("Upload Status"),
-        verbatimTextOutput("debug_upload"),
-        actionButton("run_analysis", "Run Analysis", icon = icon("play"), class = "btn-primary"),
-        br(), br(),
-        strong(textOutput("analysis_status"))
+        h4("Imputation & Plot Options"),
+        p("Imputation level influences how aggressively missing values are filled. This setting will be used by the pipeline.", style = "font-size:0.9em;"),
+        sliderInput(
+          "impute_level",
+          "Imputation level (% of allowed missingness to impute):",
+          min = 0, max = 100, value = 10, step = 5
+        ),
+        
+        selectInput(
+          "color_by",
+          "Color plots by:",
+          choices = c("None" = "none", "Batch" = "batch", "Tissue" = "tissue", "Diet" = "diet"),
+          selected = "tissue"
+        ),
+        
+        # Palette selector: RColorBrewer palettes and Viridis, plus custom hex list
+        selectInput(
+          "color_palette",
+          "Color palette:",
+          choices = c("Set1" = "Set1", "Set2" = "Set2", "Dark2" = "Dark2", "Accent" = "Accent", "Viridis" = "Viridis", "Custom" = "Custom"),
+          selected = "Set1"
+        ),
+        
+        uiOutput("palette_preview_ui"),
+        
+        conditionalPanel(
+          condition = "input.color_palette == 'Custom'",
+          textInput("custom_palette", "Custom palette (comma-separated hex colors)", value = "#1f77b4,#ff7f0e,#2ca02c")
+        ),S
+        
+        checkboxInput(
+          "factor_last",
+          "Factor query samples to the last level in all plots",
+          value = TRUE
+        ),
+        
+        br(),
+        p("Hints: set imputation level cautiously — it changes downstream results. Use 'Color plots by' to group visual output consistently." , style = "font-size:0.85em; color: #ddd;")
       ),
+      
       column(
-        width = 8,
+        width = 4,
+        h4("Preview Controls & Run"),
+        p("Adjust how the preview is shown and run/monitor the analysis from here." , style = "font-size:0.9em;"),
+        
+        # Number of rows to preview and a refresh button so user can keep preview below small
+        numericInput("preview_n", "Rows to preview:", value = 10, min = 1, max = 100, step = 1),
+        actionButton("refresh_preview", "Refresh Preview", icon = icon("sync"), style = "margin-bottom: 8px;"),
+        br(),
+        
+        # Compact upload status + run analysis so they're visible without scrolling
+        h5("Upload Status"),
+        div(verbatimTextOutput("debug_upload"), class = "upload-status-box"),
+        br(),
+        actionButton("run_analysis", "Run Analysis", icon = icon("play"), class = "btn-primary", style = "width:100%;"),
+        br(), br(),
+        strong(textOutput("analysis_status")),
+        br(),
+        downloadButton("download_preview", "Download sample (CSV)", class = "btn-secondary", style = "width:100%;")
+      )
+    ),
+    
+    tags$hr(),
+    
+    # Full-width Data Preview placed below controls so everything fits on the top without scrolling
+    fluidRow(
+      column(
+        width = 12,
         h3("Data Preview"),
         p("After uploading and running analysis, a preview of the data will appear here."),
-        DTOutput("preview_table"),
+        div(class = "data-table-container",
+            DTOutput("preview_table")
+        ),
         verbatimTextOutput("non_table_preview")
       )
     )
@@ -111,6 +187,10 @@ placeholder_image_card <- function(title, file, height = "250px") {
     )
   )
 }
+
+
+
+
 
 # -------------------------
 # Results Tab (with image placeholders)
